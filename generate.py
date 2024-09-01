@@ -38,7 +38,7 @@ preload_models(
     path="models",
 )
 
-print("downloaded and loaded models!")
+print("downloaded and loaded models")
 
 
 # simple generation

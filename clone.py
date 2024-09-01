@@ -74,7 +74,7 @@ preload_models(
     path="models",
 )
 
-print("downloaded and loaded models!")
+print("downloaded and loaded models")
 
 # --- cloning voice ---
 
@@ -111,7 +111,7 @@ np.savez(
     coarse_prompt=codes[:2, :],
     semantic_prompt=semantic_tokens,
 )
-print("cloned voice!")
+print("cloned voice")
 
 
 # simple generation

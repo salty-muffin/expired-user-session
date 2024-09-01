@@ -1,4 +1,7 @@
-from scipy.io.wavfile import write as write_wav
+# filter out deprication warnings
+import warnings
+
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import torch
@@ -20,10 +23,7 @@ from bark_hubert_quantizer.hubert_manager import HuBERTManager
 from bark_hubert_quantizer.pre_kmeans_hubert import CustomHubert
 from bark_hubert_quantizer.customtokenizer import CustomTokenizer
 
-# filter out deprication warnings
-import warnings
-
-warnings.filterwarnings("ignore")
+from scipy.io.wavfile import write as write_wav
 
 # --- loading hubert ---
 

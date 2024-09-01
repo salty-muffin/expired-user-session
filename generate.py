@@ -1,8 +1,7 @@
-from scipy.io.wavfile import write as write_wav
+# filter out deprication warnings
+import warnings
 
-import numpy as np
-import torch
-import torchaudio
+warnings.filterwarnings("ignore")
 
 from bark.api import generate_audio
 from bark.generation import (
@@ -14,16 +13,8 @@ from bark.generation import (
     # generate_text_semantic,
 )
 
-from encodec import EncodecModel
-from encodec.utils import convert_audio
-from bark_hubert_quantizer.hubert_manager import HuBERTManager
-from bark_hubert_quantizer.pre_kmeans_hubert import CustomHubert
-from bark_hubert_quantizer.customtokenizer import CustomTokenizer
+from scipy.io.wavfile import write as write_wav
 
-# filter out deprication warnings
-import warnings
-
-warnings.filterwarnings("ignore")
 
 semantic_path = "models/semantic_output/pytorch_model.bin"  # set to None if you don't want to use finetuned semantic
 coarse_path = "models/coarse_output/pytorch_model.bin"  # set to None if you don't want to use finetuned coarse

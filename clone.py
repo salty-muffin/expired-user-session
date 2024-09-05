@@ -25,6 +25,8 @@ from bark_hubert_quantizer.customtokenizer import CustomTokenizer
 
 from scipy.io.wavfile import write as write_wav
 
+from transformers import pipeline, set_seed
+
 # --- loading hubert ---
 
 large_quant_model = False  # use the larger pretrained model
@@ -113,15 +115,30 @@ np.savez(
 )
 print("cloned voice")
 
+# --- loading gpt ---
+
+print("loading gpt...")
+generator = pipeline("text-generation", model="gpt2-medium")
+
+set_seed(42)
 
 # simple generation
-text_prompt = "Hello, my name is Serpy. And, uh — and I like pizza. [laughs]"
+prompt = """
+This is a series of questions and answers. The answers may non-speech symbols, like [laughter], [laughs], [sighs], [music], [gasps], [clears throat], or — for hesitations.
+Question: Hello? Is there anybody out there?
+Answer:
+"""
+text: str = generator(prompt, max_length=30, num_return_sequences=1)[0][
+    "generated_text"
+]
+text = text.replace(prompt, "").strip()
+# text_prompt = "Hello, my name is Serpy. And, uh — and I like pizza. [laughs]"
 voice_name = output_path  # "speaker_embeddings/en_speaker_0.npz"  # use your custom voice name here if you have on
 
 filepath = "output/audio.wav"
 
-print(f"generating '{text_prompt}' with speaker '{voice_name}'...")
+print(f"generating '{text}' with speaker '{voice_name}'...")
 audio_array = generate_audio(
-    text_prompt, history_prompt=voice_name, text_temp=0.7, waveform_temp=0.7
+    text, history_prompt=voice_name, text_temp=0.7, waveform_temp=0.7
 )
 write_wav(filepath, SAMPLE_RATE, audio_array)

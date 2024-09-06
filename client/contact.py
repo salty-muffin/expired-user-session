@@ -114,13 +114,14 @@ def send_audio_to_url(audio: io.BytesIO, url: str) -> None:
     response = requests.post(
         url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
     )
+    print(f"Message sent to '{url}'.")
 
     # check if the request was successful
     if response.status_code == 200:
-        # process the response containing MP3 audio data objects
-        response_data = response.json()  # assuming the server returns JSON
-        print(f"Message sent to '{url}'.")
-        print(response_data)
+        # process the response containing the MP3 audio data object
+        os.makedirs("temp", exist_ok=True)
+        with open(os.path.join("temp", "response.mp3"), "wb") as f:
+            f.write(response.content)
     else:
         print(f"Error: {response.status_code} - {response.text}")
 

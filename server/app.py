@@ -1,15 +1,15 @@
 import os
 import io
-from flask import Flask, Response, abort, request
+from flask import Flask, Response, abort, request, send_file
 import json
 from dotenv import load_dotenv
-import whisper
+
+from stt import load_whisper, transcribe_audio
+from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
 
 load_dotenv()
 
 app = Flask(__name__)
-
-model = whisper.load_model("base")
 
 
 @app.route("/")
@@ -36,9 +36,11 @@ def contact():
     file_path = os.path.join("temp", file.filename)
     file.save(file_path)
 
-    message = process_audio(file_path)
+    message = transcribe_audio(file_path)
+    voice = clone_voice(file_path)
+    echo = convert_audio_to_mp3(speak(voice, message))
 
-    return Response(json.dumps({"message": message}), 200)
+    return send_file(echo, mimetype="audio/mpeg", download_name="echo.mp3", max_age=30)
 
 
 @app.errorhandler(401)
@@ -50,13 +52,9 @@ def unauthorized(error):
     )
 
 
-def process_audio(path: str) -> str:
-    """Transcribes the audio and then uses it to generate responses which are returned as speech."""
-
-    result = model.transcribe(path)
-
-    return result["text"]
-
-
 if __name__ == "__main__":
+    load_whisper()
+    load_hubert()
+    load_bark()
+
     app.run()

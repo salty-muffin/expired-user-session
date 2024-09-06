@@ -14,7 +14,7 @@ model = whisper.load_model("base")
 
 @app.route("/")
 def hello_world():
-    return "<p>Hello, World!</p>"
+    return "Expired User Session"
 
 
 @app.post("/contact")

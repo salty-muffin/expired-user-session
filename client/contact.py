@@ -1,21 +1,26 @@
 import os
+import click
 from pynput import keyboard
 import sounddevice as sd
 import numpy as np
 import wave
 import threading
+import io
+from pydub import AudioSegment
+import requests
+from dotenv import load_dotenv
 
 # settings for audio recording
-samplerate = 44100  # sample rate (Hz)
-channels = 1  # number of channels (mono)
+sr = 0  # sample rate (Hz)
 dtype = np.int16  # data type (16-bit PCM)
+
+ep = ""  # endpoint to send the audio to
 
 recording = False
 audio_data = []
 stream = None
 
-index = 0
-filename = "output.wav"
+load_dotenv()
 
 
 def record_audio() -> None:
@@ -34,7 +39,7 @@ def record_audio() -> None:
 
     # start recording stream
     with sd.InputStream(
-        samplerate=samplerate, channels=channels, dtype=dtype, callback=callback
+        samplerate=sr, channels=1, dtype=dtype, callback=callback
     ) as stream:
         while recording:
             sd.sleep(100)  # wait a little while recording
@@ -58,12 +63,8 @@ def stop_recording() -> None:
     global recording, index
     recording = False
 
-    _filename = os.path.splitext(filename)
-    save_audio_to_wav(
-        f"{_filename[0]}_{index}{_filename[1]}", np.concatenate(audio_data, axis=0)
-    )
-    print(f"Recording saved as '{_filename[0]}_{index}{_filename[1]}'")
-    index += 1
+    mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
+    send_audio_to_url(mp3, ep)
 
 
 def on_press(key: keyboard.Key) -> None:
@@ -85,16 +86,55 @@ def on_release(key: keyboard.Key) -> bool | None:
         return False  # stop the listener
 
 
-def save_audio_to_wav(filename: str, audio_data: np.ndarray):
-    """Save the recorded audio data to a WAV file."""
-    with wave.open(filename, "wb") as wf:
-        wf.setnchannels(channels)
+def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
+    """Convert the recorded audio data to a MP3 file and return a file object."""
+
+    wav_io = io.BytesIO()
+    with wave.open(wav_io, "wb") as wf:
+        wf.setnchannels(1)
         wf.setsampwidth(2)  # 2 bytes per sample (16-bit PCM)
-        wf.setframerate(samplerate)
+        wf.setframerate(sr)
         wf.writeframes(audio_data.tobytes())
+    audio = AudioSegment.from_wav(wav_io)
+
+    mp3_io = io.BytesIO()
+    audio.export(mp3_io, format="mp3")
+    mp3_io.seek(0)
+
+    return mp3_io
 
 
-if __name__ == "__main__":
+def send_audio_to_url(audio: io.BytesIO, url: str) -> None:
+    """Send the audio to an URL as a a file object."""
+
+    # create a dictionary for the file to be sent in the POST request
+    files = {"file": ("message.mp3", audio, "audio/mpeg")}
+
+    # send the POST request
+    response = requests.post(
+        url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
+    )
+
+    # check if the request was successful
+    if response.status_code == 200:
+        # process the response containing MP3 audio data objects
+        response_data = response.json()  # assuming the server returns JSON
+        print(f"Message sent to '{url}'.")
+        print(response_data)
+    else:
+        print(f"Error: {response.status_code} - {response.text}")
+
+
+# fmt: off
+@click.command()
+@click.option("--samplerate", type=int, default=44100, help="The recording sample rate.")
+@click.option("--endpoint",   type=str, required=True, help="The endpoint to send the recordings to.")
+# fmt: on
+def contact(samplerate: int, endpoint: str) -> None:
+    global sr, ep
+    sr = samplerate
+    ep = endpoint
+
     print("Press 'space' to start recording, release to stop.")
 
     try:
@@ -106,3 +146,7 @@ if __name__ == "__main__":
                 listener.join()
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
+
+
+if __name__ == "__main__":
+    contact()

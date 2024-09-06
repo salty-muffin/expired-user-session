@@ -166,3 +166,4 @@ output/
 speaker_embeddings/
 input/
 data/
+temp/

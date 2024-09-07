@@ -7,6 +7,7 @@ import wave
 import threading
 import io
 from pydub import AudioSegment
+from pydub.playback import play
 import requests
 from dotenv import load_dotenv
 
@@ -119,6 +120,11 @@ def send_audio_to_url(audio: io.BytesIO, url: str) -> None:
     # check if the request was successful
     if response.status_code == 200:
         # process the response containing the MP3 audio data object
+        mp3_io = io.BytesIO(response.content)
+        sound = AudioSegment.from_mp3(mp3_io)
+        play(sound)
+
+        # write it to disk for debug purposes
         os.makedirs("temp", exist_ok=True)
         with open(os.path.join("temp", "response.mp3"), "wb") as f:
             f.write(response.content)

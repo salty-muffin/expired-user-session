@@ -1,7 +1,7 @@
 from scipy.io.wavfile import write as write_wav
 
-from stt import load_whisper, transcribe_audio
-from tts import (
+from server.stt import load_whisper, transcribe_audio
+from server.tts import (
     load_hubert,
     load_bark,
     clone_voice,
@@ -24,13 +24,16 @@ if __name__ == "__main__":
 
     print("Transcribing...")
     text = transcribe_audio(input_file)
+    # text = "Hello, my name is Serpy. And, uh — and I like pizza. [laughs]"
+    text = "Hello, this is a very exhausting test."
+    # text = "Hello, I have a question. The question is, how are you? Can you please respond?"
     print(text)
 
     print("Cloning...")
     voice = clone_voice(input_file, voice_file)
 
     print("Speaking...")
-    echo = speak("temp/output.npz", text)
+    echo = speak(voice, text)
 
     print("Saving wav...")
     write_wav(output_file_wav, SAMPLE_RATE, echo)

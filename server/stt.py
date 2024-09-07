@@ -27,4 +27,4 @@ def transcribe_audio(path: str) -> str:
 
     result = model.transcribe(path)
 
-    return result["text"]
+    return result["text"].strip()

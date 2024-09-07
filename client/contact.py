@@ -7,8 +7,9 @@ import wave
 import threading
 import io
 from pydub import AudioSegment
-from pydub.playback import play
 import requests
+import subprocess
+import time
 from dotenv import load_dotenv
 
 # settings for audio recording
@@ -97,10 +98,26 @@ def stream_responses(url: str, start_response_content: bytes) -> None:
 
     sound_data = start_response_content
     while streaming:
-        # process the response containing the MP3 audio data object
-        mp3_io = io.BytesIO(sound_data)
-        sound = AudioSegment.from_mp3(mp3_io)
-        play(sound)
+        # write the mp3 data to disk as file
+        os.makedirs("temp", exist_ok=True)
+        sound_path = os.path.join("temp", "response.mp3")
+        with open(sound_path, "wb") as f:
+            f.write(sound_data)
+
+        # play back the file
+        playback = subprocess.Popen(
+            ["ffplay", "-v", "0", "-nodisp", "-autoexit", sound_path]
+        )
+
+        # wait until playback is finished or streaming stops
+        while playback.poll() is None:
+            if not streaming:
+                playback.terminate()
+            time.sleep(0.1)
+
+        # break out of the stream loop if streaming stops
+        if not streaming:
+            break
 
         # send the GET request for more answers
         response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))

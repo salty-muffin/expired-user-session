@@ -48,43 +48,27 @@ def record_audio() -> None:
     print("Recording stopped.")
 
 
-def start_recording() -> None:
-    """Start a separate thread for recording."""
-
-    global recording
-    recording = True
-
-    record_thread = threading.Thread(target=record_audio)
-    record_thread.start()
-
-
-def stop_recording() -> None:
-    """Stop the recording and save the audio to a file."""
-
-    global recording, index
-    recording = False
-
-    mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
-    send_audio_to_url(mp3, ep)
-
-
 def on_press(key: keyboard.Key) -> None:
     """Start recording when the 'space' key is pressed."""
+    global recording
 
-    try:
-        if key == keyboard.Key.space:
-            if not recording:
-                start_recording()
-    except AttributeError:
-        pass
+    if key == keyboard.Key.space and not recording:
+        recording = True
+
+        record_thread = threading.Thread(target=record_audio)
+        record_thread.start()
 
 
 def on_release(key: keyboard.Key) -> bool | None:
     """Stop recording when the 'space' key is released."""
 
+    global recording, index
+
     if key == keyboard.Key.space and recording:
-        stop_recording()
-        return False  # stop the listener
+        recording = False
+
+        mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
+        send_audio_to_url(mp3, ep)
 
 
 def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:

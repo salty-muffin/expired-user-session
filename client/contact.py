@@ -104,6 +104,7 @@ def stream_responses(url: str, start_response_content: bytes) -> None:
 
         # send the GET request for more answers
         response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
+        print(f"Asked for more from '{url}'.")
         if response.status_code == 200:
             sound_data = response.content
 

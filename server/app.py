@@ -37,6 +37,9 @@ def contact():
     file.save(file_path)
 
     message = transcribe_audio(file_path)
+    print(
+        f"received message from {request.authorization.parameters['username']}: {message}"
+    )
     voice = clone_voice(file_path)
     echo = convert_audio_to_mp3(speak(voice, message))
 

@@ -68,7 +68,7 @@ def on_release(key: keyboard.Key) -> bool | None:
         recording = False
 
         mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
-        send_audio_to_url(mp3, ep)
+        send_question_to_url(mp3, ep)
 
 
 def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
@@ -89,7 +89,7 @@ def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
     return mp3_io
 
 
-def send_audio_to_url(audio: io.BytesIO, url: str) -> None:
+def send_question_to_url(audio: io.BytesIO, url: str) -> None:
     """Send the audio to an URL as a a file object."""
 
     # create a dictionary for the file to be sent in the POST request

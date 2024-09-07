@@ -19,7 +19,8 @@ ep = ""  # endpoint to send the audio to
 
 recording = False
 audio_data = []
-stream = None
+
+streaming = False
 
 load_dotenv()
 
@@ -27,7 +28,7 @@ load_dotenv()
 def record_audio() -> None:
     """Record audio while recording flag is True."""
 
-    global audio_data, stream
+    global audio_data
     audio_data = []
 
     print("Recording started...")
@@ -39,9 +40,7 @@ def record_audio() -> None:
         audio_data.append(indata.copy())
 
     # start recording stream
-    with sd.InputStream(
-        samplerate=sr, channels=1, dtype=dtype, callback=callback
-    ) as stream:
+    with sd.InputStream(samplerate=sr, channels=1, dtype=dtype, callback=callback) as _:
         while recording:
             sd.sleep(100)  # wait a little while recording
 
@@ -50,10 +49,12 @@ def record_audio() -> None:
 
 def on_press(key: keyboard.Key) -> None:
     """Start recording when the 'space' key is pressed."""
-    global recording
+    global recording, streaming
 
     if key == keyboard.Key.space and not recording:
+        # start recording but stop the playbackstream if it's running
         recording = True
+        streaming = False
 
         record_thread = threading.Thread(target=record_audio)
         record_thread.start()
@@ -68,7 +69,7 @@ def on_release(key: keyboard.Key) -> bool | None:
         recording = False
 
         mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
-        send_question_to_url(mp3, ep)
+        send_message_to_url(mp3, ep)
 
 
 def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
@@ -89,8 +90,28 @@ def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
     return mp3_io
 
 
-def send_question_to_url(audio: io.BytesIO, url: str) -> None:
+def stream_responses(url: str, start_response_content: bytes) -> None:
+    """Play back the most current response and always request another when the current one finished playing."""
+
+    global streaming
+
+    sound_data = start_response_content
+    while streaming:
+        # process the response containing the MP3 audio data object
+        mp3_io = io.BytesIO(sound_data)
+        sound = AudioSegment.from_mp3(mp3_io)
+        play(sound)
+
+        # send the GET request for more answers
+        response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
+        if response.status_code == 200:
+            sound_data = response.content
+
+
+def send_message_to_url(audio: io.BytesIO, url: str) -> None:
     """Send the audio to an URL as a a file object."""
+
+    global streaming
 
     # create a dictionary for the file to be sent in the POST request
     files = {"file": ("message.mp3", audio, "audio/mpeg")}
@@ -103,15 +124,13 @@ def send_question_to_url(audio: io.BytesIO, url: str) -> None:
 
     # check if the request was successful
     if response.status_code == 200:
-        # process the response containing the MP3 audio data object
-        mp3_io = io.BytesIO(response.content)
-        sound = AudioSegment.from_mp3(mp3_io)
-        play(sound)
+        streaming = True
 
-        # write it to disk for debug purposes
-        os.makedirs("temp", exist_ok=True)
-        with open(os.path.join("temp", "response.mp3"), "wb") as f:
-            f.write(response.content)
+        # start thread for continously streaming answers
+        stream_thread = threading.Thread(
+            target=stream_responses, args=(url, response.content)
+        )
+        stream_thread.start()
     else:
         print(f"Error: {response.status_code} - {response.text}")
 

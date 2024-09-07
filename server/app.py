@@ -46,8 +46,10 @@ def contact():
         print(
             f"received message from {request.authorization.parameters['username']}: {message}"
         )
+        response = message
+        print(f"voicing response: {response}")
         voice = clone_voice(file_path)
-        speech = convert_audio_to_mp3(speak(voice, message))
+        speech = convert_audio_to_mp3(speak(voice, response))
 
         return send_file(
             speech, mimetype="audio/mpeg", download_name="speech.mp3", max_age=30
@@ -59,8 +61,9 @@ def contact():
         if not voice:
             return Response(json.dumps({"error": "No voice found"}), 500)
 
-        message = "This is the next message."
-        speech = convert_audio_to_mp3(speak(voice, message))
+        response = "This is the next message."
+        print(f"voicing response: {response}")
+        speech = convert_audio_to_mp3(speak(voice, response))
 
         return send_file(
             speech, mimetype="audio/mpeg", download_name="speech.mp3", max_age=30

@@ -19,13 +19,11 @@ from bark.generation import (
 
 from encodec import EncodecModel
 from encodec.utils import convert_audio
-from bark_hubert_quantizer.hubert_manager import HuBERTManager
-from bark_hubert_quantizer.pre_kmeans_hubert import CustomHubert
-from bark_hubert_quantizer.customtokenizer import CustomTokenizer
+from server.bark_hubert_quantizer.hubert_manager import HuBERTManager
+from server.bark_hubert_quantizer.pre_kmeans_hubert import CustomHubert
+from server.bark_hubert_quantizer.customtokenizer import CustomTokenizer
 
 from scipy.io.wavfile import write as write_wav
-
-from transformers import pipeline, set_seed
 
 # --- loading hubert ---
 
@@ -81,7 +79,7 @@ print("downloaded and loaded models")
 # --- cloning voice ---
 
 # load and pre-process the audio waveform
-audio_filepath = "input/audio.wav"  # the audio you want to clone (under 13 seconds)
+audio_filepath = "temp/rec.wav"  # the audio you want to clone (under 13 seconds)
 wav, sr = torchaudio.load(audio_filepath)
 
 print("creating coarse and fine prompts...")
@@ -105,40 +103,21 @@ codes = codes.cpu().numpy()
 # move semantic tokens to cpu
 semantic_tokens = semantic_tokens.cpu().numpy()
 
-voice_name = "output"  # whatever you want the name of the voice to be
-output_path = "speaker_embeddings/custom/" + voice_name + ".npz"
+voice_path = "temp/output.npz"
 np.savez(
-    output_path,
+    voice_path,
     fine_prompt=codes,
     coarse_prompt=codes[:2, :],
     semantic_prompt=semantic_tokens,
 )
 print("cloned voice")
 
-# --- loading gpt ---
+text = "Hello, my name is Serpy. And, uh — and I like pizza. [laughs]"
 
-print("loading gpt...")
-generator = pipeline("text-generation", model="gpt2-medium")
+filepath = "temp/out.wav"
 
-set_seed(42)
-
-# simple generation
-prompt = """
-This is a series of questions and answers. The answers may non-speech symbols, like [laughter], [laughs], [sighs], [music], [gasps], [clears throat], or — for hesitations.
-Question: Hello? Is there anybody out there?
-Answer:
-"""
-text: str = generator(prompt, max_length=30, num_return_sequences=1)[0][
-    "generated_text"
-]
-text = text.replace(prompt, "").strip()
-# text_prompt = "Hello, my name is Serpy. And, uh — and I like pizza. [laughs]"
-voice_name = output_path  # "speaker_embeddings/en_speaker_0.npz"  # use your custom voice name here if you have on
-
-filepath = "output/audio.wav"
-
-print(f"generating '{text}' with speaker '{voice_name}'...")
+print(f"generating '{text}' with speaker '{voice_path}'...")
 audio_array = generate_audio(
-    text, history_prompt=voice_name, text_temp=0.7, waveform_temp=0.7
+    text, history_prompt=voice_path, text_temp=0.7, waveform_temp=0.7
 )
 write_wav(filepath, SAMPLE_RATE, audio_array)

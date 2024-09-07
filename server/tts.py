@@ -26,7 +26,7 @@ from bark_hubert_quantizer.pre_kmeans_hubert import CustomHubert
 from bark_hubert_quantizer.customtokenizer import CustomTokenizer
 
 from pydub import AudioSegment
-import wave
+from scipy.io import wavfile
 
 hubert_device: str | None = None
 bark_device: str | None = None
@@ -110,6 +110,7 @@ def clone_voice(
 ) -> str:
     """Clone the audio from a sample. The sample should be max. 13 seconds long."""
 
+    # load and pre-process the audio waveform
     wav, sr = torchaudio.load(audio_file)
 
     wav = convert_audio(wav, sr, encodec_model.sample_rate, encodec_model.channels)
@@ -142,20 +143,14 @@ def clone_voice(
     return voice_outpath
 
 
-def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
+def convert_audio_to_mp3(audio_data: np.ndarray, sr=SAMPLE_RATE) -> io.BytesIO:
     """Convert the recorded audio data to a MP3 file and return a file object."""
 
     wav_io = io.BytesIO()
-    with wave.open(wav_io, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)  # 2 bytes per sample (16-bit PCM)
-        wf.setframerate(SAMPLE_RATE)
-        wf.writeframes(audio_data.tobytes())
-    audio = AudioSegment.from_wav(wav_io)
-
     mp3_io = io.BytesIO()
-    audio.export(mp3_io, format="mp3")
-    mp3_io.seek(0)
+    wavfile.write(wav_io, sr, audio_data)
+    wav_io.seek(0)
+    AudioSegment.from_wav(wav_io).export(mp3_io, format="mp3")
 
     return mp3_io
 

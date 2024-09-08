@@ -143,7 +143,7 @@ def stream_responses(url: str) -> None:
                     playback.terminate()
                 time.sleep(0.1)
         else:
-            print(f"Error: {response.status_code} - {response.text}")
+            print(f"Error GET: {response.status_code} - {response.text}")
 
 
 def send_message_to_url(audio: io.BytesIO, url: str) -> None:
@@ -168,7 +168,7 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
         stream_thread = Thread(target=stream_responses, args=[url])
         stream_thread.start()
     else:
-        print(f"Error: {response.status_code} - {response.text}")
+        print(f"Error POST: {response.status_code} - {response.text}")
 
 
 # fmt: off

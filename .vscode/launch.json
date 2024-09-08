@@ -18,7 +18,7 @@
             "program": "client/contact.py",
             "args": [
                 "--endpoint=https://session.ghostsonthe.net/contact",
-                "--breaktime=3"
+                "--breaktime=0"
             ],
             "console": "integratedTerminal"
         },

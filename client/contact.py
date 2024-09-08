@@ -5,12 +5,17 @@ import sounddevice as sd
 import numpy as np
 import wave
 from threading import Thread
+from queue import Queue
 import io
 from pydub import AudioSegment
-import requests
+import socketio
 import subprocess
 import time
 from dotenv import load_dotenv
+
+load_dotenv()
+
+sio = socketio.Client()
 
 # settings for audio recording
 dtype = np.int16  # data type (16-bit PCM)
@@ -23,9 +28,9 @@ streaming = False
 stream_thread: Thread | None = None
 record_thread: Thread | None = None
 
-click_kwargs = {}
+response_queue: Queue | None = None
 
-load_dotenv()
+click_kwargs = {}
 
 
 def record_audio() -> None:
@@ -71,16 +76,22 @@ def on_press(key: keyboard.Key) -> None:
 def on_release(key: keyboard.Key) -> bool | None:
     """Stop recording when the 'space' key is released."""
 
-    global recording, index
-
-    endpoint = click_kwargs["endpoint"]
+    global recording, streaming, response_queue
 
     if key == keyboard.Key.space and recording:
         recording = False
 
+        # if there is audio, send it to the server
         if audio_data:
             mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
-            send_message_to_url(mp3, endpoint)
+            sio.emit("contact", mp3.read())
+
+            streaming = True
+
+            # start thread for continously streaming answers, when they arrive
+            response_queue = Queue()
+            stream_thread = Thread(target=stream_responses)
+            stream_thread.start()
         else:
             print("Something went wrong with the recording.")
 
@@ -105,32 +116,24 @@ def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
     return mp3_io
 
 
-def stream_responses(url: str) -> None:
-    """Get the current response and play it back."""
+@sio.event
+def response(data: bytes) -> None:
+    if response_queue:
+        response_queue.put(data)
 
-    global streaming
+
+def stream_responses() -> None:
+    """Get the current response and play it back."""
 
     breaktime = click_kwargs["breaktime"]
 
-    while streaming:
-        # break out of the stream loop if streaming stops
-        # print(f"Waiting for {breaktime} seconds...")
-        start_time = time.time()
-        while time.time() - start_time <= breaktime:
-            if not streaming:
-                break
-            time.sleep(0.01)
-
-        # send the GET request for voices
-        # print(f"Asking for response from '{url}'...")
-        response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
-        if response.status_code == 200:
-            print(f"Received response.")
+    while streaming and response_queue:
+        if not response_queue.empty():
             # write the mp3 data to disk as file
             os.makedirs("temp", exist_ok=True)
             sound_path = os.path.join("temp", "response.mp3")
             with open(sound_path, "wb") as f:
-                f.write(response.content)
+                f.write(response_queue.get())
 
             # play back the file
             playback = subprocess.Popen(
@@ -144,53 +147,37 @@ def stream_responses(url: str) -> None:
                 if not streaming:
                     playback.terminate()
                 time.sleep(0.1)
-        elif response.status_code == 204:
-            pass
-            # print(f"Received nothing. Will try again.")
-        else:
-            print(f"Error GET: {response.status_code} - {response.text}")
 
-
-def send_message_to_url(audio: io.BytesIO, url: str) -> None:
-    """Send the audio to an URL as a a file object."""
-
-    global streaming, stream_thread
-
-    # create a dictionary for the file to be sent in the POST request
-    files = {"file": ("message.mp3", audio, "audio/mpeg")}
-
-    # send the POST request
-    response = requests.post(
-        url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
-    )
-    print(f"Message sent to '{url}'.")
-
-    # check if the request was successful
-    if response.status_code == 200:
-        streaming = True
-
-        # start thread for continously streaming answers
-        stream_thread = Thread(target=stream_responses, args=[url])
-        stream_thread.start()
-    else:
-        print(f"Error POST: {response.status_code} - {response.text}")
+            # wait for the allotted break time
+            start_time = time.time()
+            while time.time() - start_time <= breaktime:
+                if not streaming:
+                    break
+                time.sleep(0.1)
+        time.sleep(0.1)
 
 
 # fmt: off
 @click.command()
 @click.option("--samplerate", type=int,                        default=44100, help="The recording sample rate.")
 @click.option("--endpoint",   type=str,                        required=True, help="The endpoint to send the recordings to.")
-@click.option("--breaktime",  type=click.FloatRange(0.5, 5.0), default=0.5,   help="Time between requesting new voices in seconds.")
+@click.option("--breaktime",  type=click.FloatRange(0.0, 5.0), default=0.0,   help="Time between requesting new voices in seconds.")
 # fmt: on
 def contact(**kwargs) -> None:
     global streaming, recording, click_kwargs
 
+    # start websocket connection
+    sio.connect(
+        kwargs.pop("endpoint"),
+        auth={"user": os.getenv("USERNM"), "pass": os.getenv("PASSWD")},
+    )
+
     click_kwargs = kwargs
 
+    # run main loop, while connected to the server
     print("Press 'space' to start recording, release to stop.")
-
     try:
-        while True:
+        while sio.connected:
             # start key listener in the main loop
             with keyboard.Listener(
                 on_press=on_press, on_release=on_release

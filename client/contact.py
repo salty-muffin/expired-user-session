@@ -4,7 +4,7 @@ from pynput import keyboard
 import sounddevice as sd
 import numpy as np
 import wave
-from threading import Thread
+from threading import Thread, Lock
 import io
 from pydub import AudioSegment
 import requests
@@ -25,6 +25,8 @@ streaming = False
 
 stream_thread: Thread | None = None
 record_thread: Thread | None = None
+
+lock = Lock()
 
 load_dotenv()
 
@@ -123,7 +125,10 @@ def stream_responses(url: str, start_response_content: bytes) -> None:
             break
 
         # send the GET request for more answers
-        response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
+        with lock:
+            response = requests.get(
+                url, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
+            )
         print(f"Asked for more from '{url}'.")
         if response.status_code == 200:
             sound_data = response.content
@@ -138,9 +143,10 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
     files = {"file": ("message.mp3", audio, "audio/mpeg")}
 
     # send the POST request
-    response = requests.post(
-        url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
-    )
+    with lock:
+        response = requests.post(
+            url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
+        )
     print(f"Message sent to '{url}'.")
 
     # check if the request was successful

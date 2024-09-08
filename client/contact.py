@@ -4,7 +4,7 @@ from pynput import keyboard
 import sounddevice as sd
 import numpy as np
 import wave
-import threading
+from threading import Thread
 import io
 from pydub import AudioSegment
 import requests
@@ -23,8 +23,8 @@ audio_data = []
 
 streaming = False
 
-stream_thread: threading.Thread | None = None
-record_thread: threading.Thread | None = None
+stream_thread: Thread | None = None
+record_thread: Thread | None = None
 
 load_dotenv()
 
@@ -60,7 +60,7 @@ def on_press(key: keyboard.Key) -> None:
         recording = True
         streaming = False
 
-        record_thread = threading.Thread(target=record_audio)
+        record_thread = Thread(target=record_audio)
         record_thread.start()
 
 
@@ -148,9 +148,7 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
         streaming = True
 
         # start thread for continously streaming answers
-        stream_thread = threading.Thread(
-            target=stream_responses, args=(url, response.content)
-        )
+        stream_thread = Thread(target=stream_responses, args=(url, response.content))
         stream_thread.start()
     else:
         print(f"Error: {response.status_code} - {response.text}")

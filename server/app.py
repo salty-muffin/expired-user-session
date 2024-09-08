@@ -2,7 +2,7 @@ import os
 import io
 from flask import Flask, Response, abort, request, send_file
 import json
-from threading import Thread
+from threading import Thread, Lock
 from queue import Queue
 from dotenv import load_dotenv
 
@@ -17,6 +17,8 @@ voice = ""
 
 speech_thread: Thread | None = None
 speech_queue: Queue | None = None
+
+lock = Lock()
 
 
 @app.route("/")
@@ -49,15 +51,16 @@ def contact():
         file.save(file_path)
 
         # transcribe the audio
-        message = transcribe_audio(file_path)
+        with lock:
+            message = transcribe_audio(file_path)
         print(
             f"received message from {request.authorization.parameters['username']}: {message}"
         )
-        voice = clone_voice(file_path)
+        with lock:
+            voice = clone_voice(file_path)
 
         # wait for previous generation to finish
         if speech_thread and speech_thread.is_alive():
-            print("speech thread is still running, waiting to finish")
             speech_thread.join()
         # reset the speech queue
         speech_queue = Queue()
@@ -88,7 +91,6 @@ def contact():
 
         # wait for previous generation to finish
         if speech_thread and speech_thread.is_alive():
-            print("speech thread is still running, waiting to finish")
             speech_thread.join()
 
         # if no response is avaliable generate a new one while blocking
@@ -125,7 +127,10 @@ def generate_next_response() -> str:
 
 def speak_response(text: str, voice: str) -> io.BytesIO:
     print(f"voicing response: {text}")
-    speech_queue.put(convert_audio_to_mp3(speak(voice, text)))
+    with lock:
+        speech_data = speak(voice, text)
+    if speech_data is not None:
+        speech_queue.put(convert_audio_to_mp3(speech_data))
 
 
 @app.errorhandler(401)

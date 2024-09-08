@@ -13,11 +13,7 @@ import time
 from dotenv import load_dotenv
 
 # settings for audio recording
-sr = 0  # sample rate (Hz)
 dtype = np.int16  # data type (16-bit PCM)
-
-ep = ""  # endpoint to send the audio to
-bt = 0.0  # time to sleep between requesting new voices
 
 recording = False
 audio_data = []
@@ -27,6 +23,8 @@ streaming = False
 stream_thread: Thread | None = None
 record_thread: Thread | None = None
 
+click_kwargs = {}
+
 load_dotenv()
 
 
@@ -34,6 +32,9 @@ def record_audio() -> None:
     """Record audio while recording flag is True."""
 
     global audio_data
+
+    samplerate = click_kwargs["samplerate"]
+
     audio_data = []
 
     print("Recording started...")
@@ -45,7 +46,9 @@ def record_audio() -> None:
         audio_data.append(indata.copy())
 
     # start recording stream
-    with sd.InputStream(samplerate=sr, channels=1, dtype=dtype, callback=callback) as _:
+    with sd.InputStream(
+        samplerate=samplerate, channels=1, dtype=dtype, callback=callback
+    ) as _:
         while recording:
             sd.sleep(100)  # wait a little while recording
 
@@ -70,12 +73,14 @@ def on_release(key: keyboard.Key) -> bool | None:
 
     global recording, index
 
+    endpoint = click_kwargs["endpoint"]
+
     if key == keyboard.Key.space and recording:
         recording = False
 
         if audio_data:
             mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
-            send_message_to_url(mp3, ep)
+            send_message_to_url(mp3, endpoint)
         else:
             print("Something went wrong with the recording.")
 
@@ -83,11 +88,13 @@ def on_release(key: keyboard.Key) -> bool | None:
 def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
     """Convert the recorded audio data to a MP3 file and return a file object."""
 
+    samplerate = click_kwargs["samplerate"]
+
     wav_io = io.BytesIO()
     with wave.open(wav_io, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)  # 2 bytes per sample (16-bit PCM)
-        wf.setframerate(sr)
+        wf.setframerate(samplerate)
         wf.writeframes(audio_data.tobytes())
     audio = AudioSegment.from_wav(wav_io)
 
@@ -103,11 +110,14 @@ def stream_responses(url: str) -> None:
 
     global streaming
 
+    breaktime = click_kwargs["breaktime"]
+
     while streaming:
         # break out of the stream loop if streaming stops
-        print(f"Waiting for {bt} seconds...")
+        print(f"Waiting for {breaktime} seconds...")
         start_time = time.time()
-        while time.time() - start_time <= bt:
+        time.sleep(0.01)
+        while time.time() - start_time <= breaktime:
             if not streaming:
                 break
             time.sleep(0.01)
@@ -167,11 +177,10 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
 @click.option("--endpoint",   type=str,   required=True, help="The endpoint to send the recordings to.")
 @click.option("--breaktime",  type=float, default=0.0,   help="Time between requesting new voices in seconds.")
 # fmt: on
-def contact(samplerate: int, endpoint: str, breaktime: float) -> None:
-    global sr, ep, bt, streaming, recording
-    sr = samplerate
-    ep = endpoint
-    bt = breaktime
+def contact(**kwargs) -> None:
+    global streaming, recording, click_kwargs
+
+    click_kwargs = kwargs
 
     print("Press 'space' to start recording, release to stop.")
 

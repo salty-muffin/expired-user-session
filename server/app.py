@@ -22,7 +22,7 @@ lock = Lock()
 
 
 @app.route("/")
-def hello_world():
+def index():
     return Response(json.dumps({"message": "Expired User Session"}), 200)
 
 

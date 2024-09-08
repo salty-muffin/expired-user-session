@@ -75,8 +75,11 @@ def on_release(key: keyboard.Key) -> bool | None:
     if key == keyboard.Key.space and recording:
         recording = False
 
-        mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
-        send_message_to_url(mp3, ep)
+        if audio_data:
+            mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
+            send_message_to_url(mp3, ep)
+        else:
+            print("Something went wrong with the recording.")
 
 
 def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
@@ -122,8 +125,12 @@ def stream_responses(url: str, start_response_content: bytes) -> None:
             time.sleep(0.1)
 
         print(f"Waiting for {bt} seconds...")
-        time.sleep(bt)
+        start_time = time.time()
         # break out of the stream loop if streaming stops
+        while time.time() - start_time <= bt:
+            if not streaming:
+                break
+            time.sleep(0.01)
         if not streaming:
             break
 

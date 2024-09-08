@@ -5,6 +5,7 @@ import json
 from threading import Thread, Lock
 from queue import Queue
 from dotenv import load_dotenv
+import nltk
 
 from stt import load_whisper, transcribe_audio
 from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
@@ -19,6 +20,7 @@ app = Flask(__name__)
 voice = ""
 
 responses = []
+responses_queue = []
 
 speech_thread: Thread | None = None
 speech_queue: Queue | None = None
@@ -109,28 +111,33 @@ def contact():
 
 
 def generate_next_response(message: str | None = None) -> str:
-    global responses
+    global responses, responses_queue
 
     if message:
         responses = []
+        responses_queue = []
 
         prompt = question_prompt.format(message)
     else:
         prompt = continuation_prompt.format(" ".join(responses))
 
-    response_lines = (
-        generate(
-            prompt,
-            max_new_tokens=128,
-            do_sample=True,
+    if not len(responses_queue):
+        response_lines = (
+            generate(
+                prompt,
+                max_new_tokens=128,
+                do_sample=True,
+            )
+            .replace(prompt, "")
+            .split("\n")
         )
-        .replace(prompt, "")
-        .split("\n")
-    )
-    response_lines = [line.strip() for line in response_lines if line]
-    response = response_lines[0]
-    responses.append(response)
-    return response
+        response_lines = [line.strip() for line in response_lines if line]
+        response = response_lines[0]
+        responses.append(response)
+
+        responses_queue = nltk.sent_tokenize(response)
+
+    return responses_queue.pop(0) if len(responses_queue) else ""
 
 
 def speak_response(text: str, voice: str) -> io.BytesIO:
@@ -156,5 +163,7 @@ if __name__ == "__main__":
     load_bark()
     load_generator("facebook/opt-1.3b")
     set_generator_seed(42)
+
+    nltk.download("punkt_tab")
 
     app.run(port=5000)

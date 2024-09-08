@@ -23,6 +23,9 @@ audio_data = []
 
 streaming = False
 
+stream_thread: threading.Thread | None = None
+record_thread: threading.Thread | None = None
+
 load_dotenv()
 
 
@@ -50,7 +53,7 @@ def record_audio() -> None:
 
 def on_press(key: keyboard.Key) -> None:
     """Start recording when the 'space' key is pressed."""
-    global recording, streaming
+    global recording, streaming, record_thread
 
     if key == keyboard.Key.space and not recording:
         # start recording but stop the playbackstream if it's running
@@ -129,7 +132,7 @@ def stream_responses(url: str, start_response_content: bytes) -> None:
 def send_message_to_url(audio: io.BytesIO, url: str) -> None:
     """Send the audio to an URL as a a file object."""
 
-    global streaming
+    global streaming, stream_thread
 
     # create a dictionary for the file to be sent in the POST request
     files = {"file": ("message.mp3", audio, "audio/mpeg")}
@@ -159,7 +162,7 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
 @click.option("--endpoint",   type=str, required=True, help="The endpoint to send the recordings to.")
 # fmt: on
 def contact(samplerate: int, endpoint: str) -> None:
-    global sr, ep
+    global sr, ep, streaming, recording
     sr = samplerate
     ep = endpoint
 
@@ -174,6 +177,14 @@ def contact(samplerate: int, endpoint: str) -> None:
                 listener.join()
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
+    finally:
+        recording = False
+        streaming = False
+
+        if stream_thread and stream_thread.is_alive():
+            stream_thread.join()
+        if record_thread and record_thread.is_alive():
+            record_thread.join()
 
 
 if __name__ == "__main__":

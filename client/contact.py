@@ -170,6 +170,7 @@ def contact(**kwargs) -> None:
     sio.connect(
         kwargs.pop("endpoint"),
         auth={"user": os.getenv("USERNM"), "pass": os.getenv("PASSWD")},
+        transports=["websocket"],
     )
 
     click_kwargs = kwargs
@@ -185,6 +186,7 @@ def contact(**kwargs) -> None:
                 listener.join()
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
+        sio.disconnect()
     finally:
         recording = False
         streaming = False

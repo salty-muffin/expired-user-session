@@ -4,7 +4,7 @@ from pynput import keyboard
 import sounddevice as sd
 import numpy as np
 import wave
-from threading import Thread, Lock
+from threading import Thread
 import io
 from pydub import AudioSegment
 import requests
@@ -26,8 +26,6 @@ streaming = False
 
 stream_thread: Thread | None = None
 record_thread: Thread | None = None
-
-lock = Lock()
 
 load_dotenv()
 
@@ -100,48 +98,40 @@ def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
     return mp3_io
 
 
-def stream_responses(url: str, start_response_content: bytes) -> None:
-    """Play back the most current response and always request another when the current one finished playing."""
+def stream_responses(url: str) -> None:
+    """Get the current response and play it back."""
 
     global streaming
 
-    sound_data = start_response_content
     while streaming:
-        # write the mp3 data to disk as file
-        os.makedirs("temp", exist_ok=True)
-        sound_path = os.path.join("temp", "response.mp3")
-        with open(sound_path, "wb") as f:
-            f.write(sound_data)
-
-        # play back the file
-        playback = subprocess.Popen(
-            ["ffplay", "-v", "0", "-nodisp", "-autoexit", sound_path]
-        )
-
-        # wait until playback is finished or streaming stops
-        while playback.poll() is None:
-            if not streaming:
-                playback.terminate()
-            time.sleep(0.1)
-
+        # break out of the stream loop if streaming stops
         print(f"Waiting for {bt} seconds...")
         start_time = time.time()
-        # break out of the stream loop if streaming stops
         while time.time() - start_time <= bt:
             if not streaming:
                 break
             time.sleep(0.01)
-        if not streaming:
-            break
 
-        # send the GET request for more answers
-        with lock:
-            response = requests.get(
-                url, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
-            )
+        # send the GET request for voices
+        response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
         print(f"Asked for more from '{url}'.")
         if response.status_code == 200:
-            sound_data = response.content
+            # write the mp3 data to disk as file
+            os.makedirs("temp", exist_ok=True)
+            sound_path = os.path.join("temp", "response.mp3")
+            with open(sound_path, "wb") as f:
+                f.write(response.content)
+
+            # play back the file
+            playback = subprocess.Popen(
+                ["ffplay", "-v", "0", "-nodisp", "-autoexit", sound_path]
+            )
+
+            # wait until playback is finished or streaming stops
+            while playback.poll() is None:
+                if not streaming:
+                    playback.terminate()
+                time.sleep(0.1)
 
 
 def send_message_to_url(audio: io.BytesIO, url: str) -> None:
@@ -153,10 +143,9 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
     files = {"file": ("message.mp3", audio, "audio/mpeg")}
 
     # send the POST request
-    with lock:
-        response = requests.post(
-            url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
-        )
+    response = requests.post(
+        url, files=files, auth=(os.getenv("USERNM"), os.getenv("PASSWD"))
+    )
     print(f"Message sent to '{url}'.")
 
     # check if the request was successful
@@ -164,7 +153,7 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
         streaming = True
 
         # start thread for continously streaming answers
-        stream_thread = Thread(target=stream_responses, args=(url, response.content))
+        stream_thread = Thread(target=stream_responses, args=[url])
         stream_thread.start()
     else:
         print(f"Error: {response.status_code} - {response.text}")

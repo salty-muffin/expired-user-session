@@ -155,10 +155,13 @@ def convert_audio_to_mp3(audio_data: np.ndarray, sr=SAMPLE_RATE) -> io.BytesIO:
     return mp3_io
 
 
-def speak(voice_path: str, text: str, text_temp=0.7, waveform_temp=0.7) -> np.ndarray:
+def speak(
+    voice_path: str, text: str, text_temp=0.7, waveform_temp=0.7, silent=True
+) -> np.ndarray:
     return generate_audio(
         text,
         history_prompt=voice_path,
         text_temp=text_temp,
         waveform_temp=waveform_temp,
+        silent=silent,
     )

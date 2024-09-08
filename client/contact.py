@@ -17,6 +17,7 @@ sr = 0  # sample rate (Hz)
 dtype = np.int16  # data type (16-bit PCM)
 
 ep = ""  # endpoint to send the audio to
+bt = 0.0  # time to sleep between requesting new voices
 
 recording = False
 audio_data = []
@@ -120,6 +121,8 @@ def stream_responses(url: str, start_response_content: bytes) -> None:
                 playback.terminate()
             time.sleep(0.1)
 
+        print(f"Waiting for {bt} seconds...")
+        time.sleep(bt)
         # break out of the stream loop if streaming stops
         if not streaming:
             break
@@ -162,13 +165,15 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
 
 # fmt: off
 @click.command()
-@click.option("--samplerate", type=int, default=44100, help="The recording sample rate.")
-@click.option("--endpoint",   type=str, required=True, help="The endpoint to send the recordings to.")
+@click.option("--samplerate", type=int,   default=44100, help="The recording sample rate.")
+@click.option("--endpoint",   type=str,   required=True, help="The endpoint to send the recordings to.")
+@click.option("--breaktime",  type=float, default=0.0,   help="Time between requesting new voices in seconds.")
 # fmt: on
-def contact(samplerate: int, endpoint: str) -> None:
-    global sr, ep, streaming, recording
+def contact(samplerate: int, endpoint: str, breaktime: float) -> None:
+    global sr, ep, bt, streaming, recording
     sr = samplerate
     ep = endpoint
+    bt = breaktime
 
     print("Press 'space' to start recording, release to stop.")
 

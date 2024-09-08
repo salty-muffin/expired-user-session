@@ -77,9 +77,7 @@ def contact():
 
         # start generation on a new response
         streaming = True
-        speech_thread = Thread(
-            target=speak_response, args=[generate_next_response(message), voice]
-        )
+        speech_thread = Thread(target=speak_response, args=[voice, message])
         speech_thread.start()
 
         return Response(status=200)
@@ -89,13 +87,6 @@ def contact():
         # check if a voice has been cloned
         if not voice:
             return Response(json.dumps({"error": "No voice found"}), status=500)
-
-        if speech_thread and not speech_thread.is_alive():
-            # start generation on a new response in the background
-            speech_thread = Thread(
-                target=speak_response, args=(generate_next_response(), voice)
-            )
-            speech_thread.start()
 
         if speech_queue.empty():
             return Response(json.dumps({"message": "No speech in queue"}), status=204)
@@ -134,8 +125,14 @@ def generate_next_response(message: str | None = None) -> str:
     return nltk.sent_tokenize(response)
 
 
-def speak_response(text_queue: list[str], voice: str) -> io.BytesIO:
-    while streaming and len(text_queue):
+def speak_response(voice: str, message: str | None = None) -> io.BytesIO:
+    text_queue = []
+    if message:
+        text_queue = generate_next_response(message)
+    while streaming:
+        if not len(text_queue):
+            text_queue = generate_next_response()
+
         text = text_queue.pop(0)
         print(f"voicing response: {text}")
         with cuda_lock:

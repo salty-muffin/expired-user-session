@@ -125,7 +125,7 @@ def stream_responses(url: str) -> None:
         # print(f"Asking for response from '{url}'...")
         response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
         if response.status_code == 200:
-            # print(f"Received response.")
+            print(f"Received response.")
             # write the mp3 data to disk as file
             os.makedirs("temp", exist_ok=True)
             sound_path = os.path.join("temp", "response.mp3")
@@ -134,7 +134,9 @@ def stream_responses(url: str) -> None:
 
             # play back the file
             playback = subprocess.Popen(
-                ["ffplay", "-v", "0", "-nodisp", "-autoexit", sound_path]
+                ["ffplay", "-v", "0", "-nodisp", "-autoexit", sound_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
             )
 
             # wait until playback is finished or streaming stops

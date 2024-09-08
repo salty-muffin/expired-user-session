@@ -8,12 +8,17 @@ from dotenv import load_dotenv
 
 from stt import load_whisper, transcribe_audio
 from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
+from text_generator import load_generator, set_generator_seed, generate
+
+from prompts import question_prompt, continuation_prompt
 
 load_dotenv()
 
 app = Flask(__name__)
 
 voice = ""
+
+responses = []
 
 speech_thread: Thread | None = None
 speech_queue: Queue | None = None
@@ -65,12 +70,9 @@ def contact():
         # reset the speech queue
         speech_queue = Queue()
 
-        # generate the response
-        response = message
-
         # start generation on a new response
         speech_thread = Thread(
-            target=speak_response, args=[generate_next_response(response), voice]
+            target=speak_response, args=[generate_next_response(message), voice]
         )
         speech_thread.start()
 
@@ -106,20 +108,29 @@ def contact():
         )
 
 
-counter = 0
-words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
-
-
 def generate_next_response(message: str | None = None) -> str:
-    global counter
+    global responses
 
     if message:
-        return message
+        responses = []
 
-    counter += 1
-    if counter > 5:
-        counter = 1
-    return f"This is message number {words[counter]}."
+        prompt = question_prompt.format(message)
+    else:
+        prompt = continuation_prompt.format(" ".join(responses))
+
+    response_lines = (
+        generate(
+            prompt,
+            max_new_tokens=128,
+            do_sample=True,
+        )
+        .replace(prompt, "")
+        .split("\n")
+    )
+    response_lines = [line.strip() for line in response_lines if line]
+    response = response_lines[0]
+    responses.append(response)
+    return response
 
 
 def speak_response(text: str, voice: str) -> io.BytesIO:
@@ -143,5 +154,7 @@ if __name__ == "__main__":
     load_whisper()
     load_hubert()
     load_bark()
+    load_generator("facebook/opt-1.3b")
+    set_generator_seed(42)
 
-    app.run()
+    app.run(port=5000)

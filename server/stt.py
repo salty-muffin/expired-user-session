@@ -16,6 +16,7 @@ def load_whisper(model_name="base", device: str | None = None) -> None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print(f"Using {device} for whisper speech to text.")
+
     model = whisper.load_model(model_name, device=device)
 
 

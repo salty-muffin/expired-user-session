@@ -114,18 +114,18 @@ def stream_responses(url: str) -> None:
 
     while streaming:
         # break out of the stream loop if streaming stops
-        print(f"Waiting for {breaktime} seconds...")
+        # print(f"Waiting for {breaktime} seconds...")
         start_time = time.time()
-        time.sleep(0.01)
         while time.time() - start_time <= breaktime:
             if not streaming:
                 break
             time.sleep(0.01)
 
         # send the GET request for voices
+        # print(f"Asking for response from '{url}'...")
         response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
-        print(f"Asked for response from '{url}'.")
         if response.status_code == 200:
+            # print(f"Received response.")
             # write the mp3 data to disk as file
             os.makedirs("temp", exist_ok=True)
             sound_path = os.path.join("temp", "response.mp3")
@@ -142,6 +142,9 @@ def stream_responses(url: str) -> None:
                 if not streaming:
                     playback.terminate()
                 time.sleep(0.1)
+        elif response.status_code == 204:
+            pass
+            # print(f"Received nothing. Will try again.")
         else:
             print(f"Error GET: {response.status_code} - {response.text}")
 
@@ -173,9 +176,9 @@ def send_message_to_url(audio: io.BytesIO, url: str) -> None:
 
 # fmt: off
 @click.command()
-@click.option("--samplerate", type=int,   default=44100, help="The recording sample rate.")
-@click.option("--endpoint",   type=str,   required=True, help="The endpoint to send the recordings to.")
-@click.option("--breaktime",  type=float, default=0.0,   help="Time between requesting new voices in seconds.")
+@click.option("--samplerate", type=int,                        default=44100, help="The recording sample rate.")
+@click.option("--endpoint",   type=str,                        required=True, help="The endpoint to send the recordings to.")
+@click.option("--breaktime",  type=click.FloatRange(0.5, 5.0), default=0.5,   help="Time between requesting new voices in seconds.")
 # fmt: on
 def contact(**kwargs) -> None:
     global streaming, recording, click_kwargs

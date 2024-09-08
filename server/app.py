@@ -20,12 +20,13 @@ app = Flask(__name__)
 voice = ""
 
 responses = []
-responses_queue = []
 
 speech_thread: Thread | None = None
 speech_queue: Queue | None = None
 
 cuda_lock = Lock()
+
+streaming = False
 
 
 @app.route("/")
@@ -35,7 +36,7 @@ def index():
 
 @app.route("/contact", methods=["GET", "POST"])
 def contact():
-    global voice, speech_thread, speech_queue
+    global voice, speech_thread, speech_queue, streaming
 
     # check for auth
     if not (
@@ -46,6 +47,8 @@ def contact():
         abort(401)
     # post request first for sending the question and voice
     if request.method == "POST":
+        # stop text generation
+        streaming = False
 
         # check if file is included
         if not "file" in request.files:
@@ -73,6 +76,7 @@ def contact():
         speech_queue = Queue()
 
         # start generation on a new response
+        streaming = True
         speech_thread = Thread(
             target=speak_response, args=[generate_next_response(message), voice]
         )
@@ -86,66 +90,58 @@ def contact():
         if not voice:
             return Response(json.dumps({"error": "No voice found"}), status=500)
 
-        # wait for previous generation to finish
-        if speech_thread and speech_thread.is_alive():
-            speech_thread.join()
-
-        # if no response is avaliable generate a new one while blocking
-        # otherwise just send an avaliable one and start generating the next one in the background
-        if speech_queue.empty():
-            # generate a new response while blocking
-            speak_response(generate_next_response(), voice)
-        else:
+        if speech_thread and not speech_thread.is_alive():
             # start generation on a new response in the background
             speech_thread = Thread(
                 target=speak_response, args=(generate_next_response(), voice)
             )
             speech_thread.start()
 
-        return send_file(
-            speech_queue.get(),
-            mimetype="audio/mpeg",
-            download_name="speech.mp3",
-            max_age=30,
-        )
+        if speech_queue.empty():
+            return Response(json.dumps({"message": "No speech in queue"}), status=204)
+        else:
+            return send_file(
+                speech_queue.get(),
+                mimetype="audio/mpeg",
+                download_name="speech.mp3",
+                max_age=30,
+            )
 
 
 def generate_next_response(message: str | None = None) -> str:
-    global responses, responses_queue
+    global responses
 
     if message:
         responses = []
-        responses_queue = []
 
         prompt = question_prompt.format(message)
     else:
         prompt = continuation_prompt.format(" ".join(responses))
 
-    if not len(responses_queue):
-        response_lines = (
-            generate(
-                prompt,
-                max_new_tokens=128,
-                do_sample=True,
-            )
-            .replace(prompt, "")
-            .split("\n")
+    response_lines = (
+        generate(
+            prompt,
+            max_new_tokens=128,
+            do_sample=True,
         )
-        response_lines = [line.strip() for line in response_lines if line]
-        response = response_lines[0]
-        responses.append(response)
+        .replace(prompt, "")
+        .split("\n")
+    )
+    response_lines = [line.strip() for line in response_lines if line]
+    response = response_lines[0]
+    responses.append(response)
 
-        responses_queue = nltk.sent_tokenize(response)
-
-    return responses_queue.pop(0) if len(responses_queue) else ""
+    return nltk.sent_tokenize(response)
 
 
-def speak_response(text: str, voice: str) -> io.BytesIO:
-    print(f"voicing response: {text}")
-    with cuda_lock:
-        speech_data = speak(voice, text)
-    if speech_data is not None:
-        speech_queue.put(convert_audio_to_mp3(speech_data))
+def speak_response(text_queue: list[str], voice: str) -> io.BytesIO:
+    while streaming and len(text_queue):
+        text = text_queue.pop(0)
+        print(f"voicing response: {text}")
+        with cuda_lock:
+            speech_data = speak(voice, text)
+        if speech_data is not None:
+            speech_queue.put(convert_audio_to_mp3(speech_data))
 
 
 @app.errorhandler(401)

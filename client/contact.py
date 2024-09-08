@@ -114,7 +114,7 @@ def stream_responses(url: str) -> None:
 
         # send the GET request for voices
         response = requests.get(url, auth=(os.getenv("USERNM"), os.getenv("PASSWD")))
-        print(f"Asked for more from '{url}'.")
+        print(f"Asked for response from '{url}'.")
         if response.status_code == 200:
             # write the mp3 data to disk as file
             os.makedirs("temp", exist_ok=True)
@@ -132,6 +132,8 @@ def stream_responses(url: str) -> None:
                 if not streaming:
                     playback.terminate()
                 time.sleep(0.1)
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
 
 
 def send_message_to_url(audio: io.BytesIO, url: str) -> None:

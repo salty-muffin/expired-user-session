@@ -18,7 +18,7 @@ voice = ""
 speech_thread: Thread | None = None
 speech_queue: Queue | None = None
 
-lock = Lock()
+cuda_lock = Lock()
 
 
 @app.route("/")
@@ -42,7 +42,7 @@ def contact():
 
         # check if file is included
         if not "file" in request.files:
-            return Response(json.dumps({"error": "No file part"}), 400)
+            return Response(json.dumps({"error": "No file part"}), status=400)
 
         # save file temporarily
         file = request.files["file"]
@@ -51,12 +51,12 @@ def contact():
         file.save(file_path)
 
         # transcribe the audio
-        with lock:
+        with cuda_lock:
             message = transcribe_audio(file_path)
         print(
             f"received message from {request.authorization.parameters['username']}: {message}"
         )
-        with lock:
+        with cuda_lock:
             voice = clone_voice(file_path)
 
         # wait for previous generation to finish
@@ -68,26 +68,19 @@ def contact():
         # generate the response
         response = message
 
-        speak_response(response, voice)
-
         # start generation on a new response
         speech_thread = Thread(
-            target=speak_response, args=(generate_next_response(), voice)
+            target=speak_response, args=[generate_next_response(response), voice]
         )
         speech_thread.start()
 
-        return send_file(
-            speech_queue.get(),
-            mimetype="audio/mpeg",
-            download_name="speech.mp3",
-            max_age=30,
-        )
+        return Response(status=200)
 
     # get requests after for getting continous answers
     if request.method == "GET":
         # check if a voice has been cloned
         if not voice:
-            return Response(json.dumps({"error": "No voice found"}), 500)
+            return Response(json.dumps({"error": "No voice found"}), status=500)
 
         # wait for previous generation to finish
         if speech_thread and speech_thread.is_alive():
@@ -113,21 +106,25 @@ def contact():
         )
 
 
-index = 0
+counter = 0
 words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
 
 
-def generate_next_response() -> str:
-    global index
-    index += 1
-    if index > 5:
-        index = 1
-    return f"This is message number {words[index]}."
+def generate_next_response(message: str | None = None) -> str:
+    global counter
+
+    if message:
+        return message
+
+    counter += 1
+    if counter > 5:
+        counter = 1
+    return f"This is message number {words[counter]}."
 
 
 def speak_response(text: str, voice: str) -> io.BytesIO:
     print(f"voicing response: {text}")
-    with lock:
+    with cuda_lock:
         speech_data = speak(voice, text)
     if speech_data is not None:
         speech_queue.put(convert_audio_to_mp3(speech_data))

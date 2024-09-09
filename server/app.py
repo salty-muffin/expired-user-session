@@ -1,87 +1,187 @@
 import os
-import io
-from flask import Flask, Response, abort, request, send_file
-import json
+import click
+import eventlet
+import socketio
+from threading import Thread, Lock
 from dotenv import load_dotenv
+import nltk
 
 from stt import load_whisper, transcribe_audio
 from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
+from text_generator import load_generator, set_generator_seed, generate
+
+from prompts import question_prompt, continuation_prompt
 
 load_dotenv()
 
-app = Flask(__name__)
+sio = socketio.Server(ping_timeout=60)
+app = socketio.WSGIApp(sio)
 
 voice = ""
 
+responses = []
 
-@app.route("/")
-def hello_world():
-    return "Expired User Session"
+speech_thread: Thread | None = None
 
+cuda_lock = Lock()
 
-@app.route("/contact", methods=["GET", "POST"])
-def contact():
-    global voice
+streaming = False
 
-    # check for auth
-    if not (
-        request.authorization
-        and request.authorization.parameters["username"] == os.getenv("USERNM")
-        and request.authorization.parameters["password"] == os.getenv("PASSWD")
-    ):
-        abort(401)
-    # post request first for sending the question and voice
-    if request.method == "POST":
-        # check if file is included
-        if not "file" in request.files:
-            return Response(json.dumps({"error": "No file part"}), 400)
+users = set()
 
-        # save file temporarily
-        file = request.files["file"]
-        os.makedirs("temp", exist_ok=True)
-        file_path = os.path.join("temp", file.filename)
-        file.save(file_path)
-
-        message = transcribe_audio(file_path)
-        print(
-            f"received message from {request.authorization.parameters['username']}: {message}"
-        )
-        response = message
-        print(f"voicing response: {response}")
-        voice = clone_voice(file_path)
-        speech = convert_audio_to_mp3(speak(voice, response))
-
-        return send_file(
-            speech, mimetype="audio/mpeg", download_name="speech.mp3", max_age=30
-        )
-
-    # get requests after for getting continous answers
-    if request.method == "GET":
-        # check if a voice has been cloned
-        if not voice:
-            return Response(json.dumps({"error": "No voice found"}), 500)
-
-        response = "This is the next message."
-        print(f"voicing response: {response}")
-        speech = convert_audio_to_mp3(speak(voice, response))
-
-        return send_file(
-            speech, mimetype="audio/mpeg", download_name="speech.mp3", max_age=30
-        )
+click_kwargs = {}
 
 
-@app.errorhandler(401)
-def unauthorized(error):
-    return Response(
-        "Wrong user and/or passcode",
-        401,
-        {"WWW-Authenticate": 'Basic realm="Login Required"'},
+@sio.event
+def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
+    if not auth["password"] == os.getenv("PASSWD") or len(users):
+        return False
+
+    users.add(sid)
+    print(f"Contact established with '{sid}'.")
+
+
+@sio.event
+def disconnect(sid: str) -> None:
+    users.remove(sid)
+    print(f"Contact lost with '{sid}'.")
+
+
+@sio.event
+def contact(_: str, data: bytes) -> None:
+    global streaming, speech_thread
+
+    # stop text generation
+    streaming = False
+
+    # write the mp3 data to disk as file
+    os.makedirs("temp", exist_ok=True)
+    sound_path = os.path.join("temp", "message.mp3")
+    with open(sound_path, "wb") as f:
+        f.write(data)
+
+    # transcribe the audio
+    with cuda_lock:
+        message = transcribe_audio(sound_path)
+    print(f"Received message: '{message}'.")
+
+    # clone voice
+    with cuda_lock:
+        voice = clone_voice(sound_path)
+
+    # wait for previous generation to finish
+    if speech_thread:
+        speech_thread.join()
+
+    # start generating responses
+    streaming = True
+    speech_thread = sio.start_background_task(
+        target=stream_responses, voice=voice, message=message
     )
 
 
-if __name__ == "__main__":
+def stream_responses(voice: str, message: str) -> None:
+    text_queue = []
+    first_response = True
+    # if this is first generation
+    if message:
+        text_queue = generate_next_response(message)
+    while streaming and len(users):
+        if not len(text_queue):
+            # if nothing is in queue, regenerate
+            text_queue = generate_next_response()
+            # use this opportunity to quit, if not required to continue
+            if not streaming:
+                break
+
+        # get next item for tts
+        text = text_queue.pop(0)
+        print(f"Voicing response: '{text}'.")
+        # generate speech
+        with cuda_lock:
+            try:
+                speech_data = speak(voice, text, silent=click_kwargs["silent"])
+            except Exception:
+                speech_data = []
+                sio.send("Please try again.")
+                sio.sleep(1)
+        # if successful, send to client
+        if speech_data is not None:
+            mp3 = convert_audio_to_mp3(speech_data)
+
+            sio.emit("first_response" if first_response else "response", mp3.read())
+            sio.sleep(click_kwargs["wait"])
+            first_response = False
+
+
+def generate_next_response(message: str | None = None) -> str:
+    global responses
+
+    if message:
+        responses = []
+
+        prompt = question_prompt.format(message)
+    else:
+        prompt = continuation_prompt.format(" ".join(responses))
+
+    response_lines = (
+        generate(
+            prompt,
+            max_new_tokens=128,
+            do_sample=True,
+        )
+        .replace(prompt, "")
+        .split("\n")
+    )
+    response_lines = [line.strip() for line in response_lines if line]
+    response = response_lines[0]
+    responses.append(response)
+
+    return nltk.sent_tokenize(response)
+
+
+def run_socketio() -> None:
+    """Function to handle the SocketIO server"""
+
+    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+
+
+@sio.event
+def seed(_: str, data: dict[str, int]) -> None:
+    print(f"Received seed: {data['seed']}.")
+    set_generator_seed(data["seed"])
+
+
+# fmt: off
+@click.command()
+@click.option("--model",  type=str, required=True,                 help="The transformer model for speech generation.")
+@click.option("--silent", is_flag=True,                            help="Don't output voice generation progress bars.")
+@click.option("--wait",   type=click.FloatRange(1.0), default=1.0, help="Waittime after each socketio emit.")
+# fmt: on
+def respond(**kwargs) -> None:
+    global streaming, speech_thread, click_kwargs
+
+    click_kwargs = kwargs
+
     load_whisper()
     load_hubert()
     load_bark()
+    load_generator(kwargs["model"])
 
-    app.run()
+    nltk.download("punkt_tab")
+
+    # start socket connection
+    socketio_thread = Thread(target=run_socketio)
+    socketio_thread.start()
+    try:
+        socketio_thread.join()
+    except KeyboardInterrupt:
+        print("Program interrupted. Exiting...")
+        streaming = False
+
+        if speech_thread:
+            speech_thread.join()
+
+
+if __name__ == "__main__":
+    respond()

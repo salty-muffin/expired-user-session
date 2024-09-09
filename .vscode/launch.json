@@ -17,7 +17,20 @@
             "request": "launch",
             "program": "client/contact.py",
             "args": [
-                "--endpoint=https://session.ghostsonthe.net/contact",
+                "--endpoint=https://session.ghostsonthe.net",
+                "--breaktime=0.5",
+                // "--playall"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "server response",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "server/app.py",
+            "args": [
+                "--model=facebook/opt-1.3b",
+                // "--silent"
             ],
             "console": "integratedTerminal"
         },

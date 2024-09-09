@@ -26,6 +26,6 @@ dependencies:
       # whisper
       - openai-whisper==20231117
       - pydub==0.25.1
-      # flask
-      - flask==3.0.3
-      - waitress==3.0.0
+      # socketio
+      - python-socketio==5.11.4
+      - eventlet==0.36.1

@@ -28,9 +28,11 @@ streaming = False
 stream_thread: Thread | None = None
 record_thread: Thread | None = None
 
-response_queue: Queue | None = None
+response_queue = Queue()
 
 click_kwargs = {}
+
+first = False
 
 
 def record_audio() -> None:
@@ -76,7 +78,7 @@ def on_press(key: keyboard.Key) -> None:
 def on_release(key: keyboard.Key) -> bool | None:
     """Stop recording when the 'space' key is released."""
 
-    global recording, streaming, response_queue
+    global recording, streaming, response_queue, first
 
     if key == keyboard.Key.space and recording:
         recording = False
@@ -85,11 +87,16 @@ def on_release(key: keyboard.Key) -> bool | None:
         if audio_data:
             mp3 = convert_audio_to_mp3(np.concatenate(audio_data, axis=0))
             sio.emit("contact", mp3.read())
+            sio.sleep(1)
 
             streaming = True
+            first = True
+
+            # empty que
+            while not response_queue.empty():
+                response_queue.get()
 
             # start thread for continously streaming answers, when they arrive
-            response_queue = Queue()
             stream_thread = Thread(target=stream_responses)
             stream_thread.start()
         else:
@@ -117,8 +124,17 @@ def convert_audio_to_mp3(audio_data: np.ndarray) -> io.BytesIO:
 
 
 @sio.event
+def first_response(data: bytes) -> None:
+    global first
+
+    if first or click_kwargs["playall"]:
+        response_queue.put(data)
+        first = False
+
+
+@sio.event
 def response(data: bytes) -> None:
-    if response_queue:
+    if not first or click_kwargs["playall"]:
         response_queue.put(data)
 
 
@@ -168,7 +184,7 @@ def run_socketio(endpoint: str) -> None:
             retry=True,
         )
         sio.wait()
-    except Exception:
+    except:
         sio.disconnect()
 
 
@@ -177,6 +193,7 @@ def run_socketio(endpoint: str) -> None:
 @click.option("--samplerate", type=int,                        default=44100, help="The recording sample rate.")
 @click.option("--endpoint",   type=str,                        required=True, help="The endpoint to send the recordings to.")
 @click.option("--breaktime",  type=click.FloatRange(0.0, 5.0), default=0.0,   help="Time between requesting new voices in seconds.")
+@click.option("--playall",    is_flag=True,                                   help="Play everything that is received from the server, even if a new question has been sent.")
 # fmt: on
 def contact(**kwargs) -> None:
     global streaming, recording, click_kwargs
@@ -197,6 +214,8 @@ def contact(**kwargs) -> None:
         keyboard_listener.start()
         keyboard_listener.join()
     except KeyboardInterrupt:
+        print("Program interrupted. Exiting...")
+    except SystemExit:
         print("Program interrupted. Exiting...")
     finally:
         socketio_thread.join()

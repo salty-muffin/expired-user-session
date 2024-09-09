@@ -11,6 +11,7 @@ from pydub import AudioSegment
 import socketio
 import subprocess
 import time
+import cv2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -189,12 +190,30 @@ def run_socketio(endpoint: str) -> None:
         sio.disconnect()
 
 
+def get_seed(capture_id: int) -> None:
+    cap = cv2.VideoCapture(capture_id)
+
+    ret, frame = cap.read()
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    pixel_values = np.array(frame)
+    seed = np.sum(pixel_values)
+    sio.emit("seed", {"seed": int(seed)})
+
+    cap.release()
+
+
+@sio.event
+def message(data: str):
+    print(f"Received message '{data}'.")
+
+
 # fmt: off
 @click.command()
 @click.option("--samplerate", type=int,                        default=44100, help="The recording sample rate.")
 @click.option("--endpoint",   type=str,                        required=True, help="The endpoint to send the recordings to.")
 @click.option("--breaktime",  type=click.FloatRange(0.0, 5.0), default=0.0,   help="Time between requesting new voices in seconds.")
 @click.option("--playall",    is_flag=True,                                   help="Play everything that is received from the server, even if a new question has been sent.")
+@click.option("--captureid",  type=int,                        default=0,     help="ID of the video capture device.")
 # fmt: on
 def contact(**kwargs) -> None:
     global streaming, recording, click_kwargs
@@ -207,6 +226,12 @@ def contact(**kwargs) -> None:
 
     # start socket connection
     socketio_thread.start()
+
+    print(f"Connectig to '{kwargs['endpoint']}'...")
+    while not sio.connected:
+        sio.sleep(1)
+    print("Getting seed from environment.")
+    get_seed(kwargs["captureid"])
 
     # run main loop, while connected to the server
     print("Press 'space' to start recording, release to stop.")

@@ -29,6 +29,8 @@ streaming = False
 
 users = set()
 
+click_kwargs = {}
+
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
@@ -97,13 +99,13 @@ def stream_responses(voice: str, message: str) -> None:
         print(f"Voicing response: '{text}'.")
         # generate speech
         with cuda_lock:
-            speech_data = speak(voice, text, silent=False)
+            speech_data = speak(voice, text)
         # if successful, send to client
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)
 
             sio.emit("first_response" if first_response else "response", mp3.read())
-            sio.sleep(1)
+            sio.sleep(click_kwargs["wait"])
             first_response = False
 
 
@@ -135,14 +137,19 @@ def generate_next_response(message: str | None = None) -> str:
 
 # fmt: off
 @click.command()
+@click.option("--model",  type=str, required=True,                 help="The transformer model for speech generation.")
+@click.option("--silent", is_flag=True,                            help="Don't output voice generation progress bars.")
+@click.option("--wait",   type=click.FloatRange(1.0), default=1.0, help="Waittime after each socketio emit.")
 # fmt: on
-def respond() -> None:
-    global streaming, speech_thread
+def respond(**kwargs) -> None:
+    global streaming, speech_thread, click_kwargs
+
+    click_kwargs = kwargs
 
     load_whisper()
     load_hubert()
     load_bark()
-    load_generator("facebook/opt-1.3b")
+    load_generator(kwargs["model"])
     set_generator_seed(42)
 
     nltk.download("punkt_tab")

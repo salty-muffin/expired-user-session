@@ -183,7 +183,7 @@ def run_socketio(endpoint: str) -> None:
             transports=["websocket"],
             retry=True,
         )
-        sio.wait()
+        sio.wait(click_kwargs["wait"])
     except:
         sio.disconnect()
 
@@ -194,6 +194,7 @@ def run_socketio(endpoint: str) -> None:
 @click.option("--endpoint",   type=str,                        required=True, help="The endpoint to send the recordings to.")
 @click.option("--breaktime",  type=click.FloatRange(0.0, 5.0), default=0.0,   help="Time between requesting new voices in seconds.")
 @click.option("--playall",    is_flag=True,                                   help="Play everything that is received from the server, even if a new question has been sent.")
+@click.option("--wait",       type=click.FloatRange(1.0),      default=1.0,   help="Waittime after each socketio emit.")
 # fmt: on
 def contact(**kwargs) -> None:
     global streaming, recording, click_kwargs

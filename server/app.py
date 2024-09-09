@@ -99,7 +99,7 @@ def stream_responses(voice: str, message: str) -> None:
         print(f"Voicing response: '{text}'.")
         # generate speech
         with cuda_lock:
-            speech_data = speak(voice, text)
+            speech_data = speak(voice, text, silent=click_kwargs["silent"])
         # if successful, send to client
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)
@@ -135,6 +135,12 @@ def generate_next_response(message: str | None = None) -> str:
     return nltk.sent_tokenize(response)
 
 
+def run_socketio() -> None:
+    """Function to handle the SocketIO server"""
+
+    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+
+
 # fmt: off
 @click.command()
 @click.option("--model",  type=str, required=True,                 help="The transformer model for speech generation.")
@@ -155,13 +161,16 @@ def respond(**kwargs) -> None:
     nltk.download("punkt_tab")
 
     # start socket connection
+    socketio_thread = Thread(target=run_socketio)
+    socketio_thread.start()
     try:
-        eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+        socketio_thread.join()
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
         streaming = False
 
-        speech_thread.join()
+        if speech_thread:
+            speech_thread.join()
 
 
 if __name__ == "__main__":

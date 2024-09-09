@@ -99,7 +99,12 @@ def stream_responses(voice: str, message: str) -> None:
         print(f"Voicing response: '{text}'.")
         # generate speech
         with cuda_lock:
-            speech_data = speak(voice, text, silent=click_kwargs["silent"])
+            try:
+                speech_data = speak(voice, text, silent=click_kwargs["silent"])
+            except Exception:
+                speech_data = []
+                sio.send("Please try again.")
+                sio.sleep(1)
         # if successful, send to client
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)
@@ -141,6 +146,12 @@ def run_socketio() -> None:
     eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
 
 
+@sio.event
+def seed(_: str, data: dict[str, int]) -> None:
+    print(f"Received seed: {data['seed']}.")
+    set_generator_seed(data["seed"])
+
+
 # fmt: off
 @click.command()
 @click.option("--model",  type=str, required=True,                 help="The transformer model for speech generation.")
@@ -156,7 +167,6 @@ def respond(**kwargs) -> None:
     load_hubert()
     load_bark()
     load_generator(kwargs["model"])
-    set_generator_seed(42)
 
     nltk.download("punkt_tab")
 

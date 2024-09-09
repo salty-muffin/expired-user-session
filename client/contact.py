@@ -157,6 +157,21 @@ def stream_responses() -> None:
         time.sleep(0.1)
 
 
+def run_socketio(endpoint: str) -> None:
+    """Function to handle the SocketIO client connection"""
+
+    try:
+        sio.connect(
+            endpoint,
+            auth={"user": os.getenv("USERNM"), "password": os.getenv("PASSWD")},
+            transports=["websocket"],
+            retry=True,
+        )
+        sio.wait()
+    except Exception:
+        sio.disconnect()
+
+
 # fmt: off
 @click.command()
 @click.option("--samplerate", type=int,                        default=44100, help="The recording sample rate.")
@@ -166,28 +181,26 @@ def stream_responses() -> None:
 def contact(**kwargs) -> None:
     global streaming, recording, click_kwargs
 
-    # start websocket connection
-    sio.connect(
-        kwargs.pop("endpoint"),
-        auth={"user": os.getenv("USERNM"), "pass": os.getenv("PASSWD")},
-        transports=["websocket"],
-    )
-
     click_kwargs = kwargs
+
+    # setup concurrent threads
+    keyboard_listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+    socketio_thread = Thread(target=run_socketio, args=[kwargs["endpoint"]])
+
+    # start socket connection
+    socketio_thread.start()
 
     # run main loop, while connected to the server
     print("Press 'space' to start recording, release to stop.")
     try:
-        while sio.connected:
-            # start key listener in the main loop
-            with keyboard.Listener(
-                on_press=on_press, on_release=on_release
-            ) as listener:
-                listener.join()
+        # start key listener in the main loop
+        keyboard_listener.start()
+        keyboard_listener.join()
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
-        sio.disconnect()
     finally:
+        socketio_thread.join()
+
         recording = False
         streaming = False
 

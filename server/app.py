@@ -1,10 +1,8 @@
 import os
-import io
+import click
 import eventlet
 import socketio
-import json
 from threading import Thread, Lock
-from queue import Queue
 from dotenv import load_dotenv
 import nltk
 
@@ -16,7 +14,7 @@ from prompts import question_prompt, continuation_prompt
 
 load_dotenv()
 
-sio = socketio.Server()
+sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(sio)
 
 voice = ""
@@ -29,23 +27,27 @@ cuda_lock = Lock()
 
 streaming = False
 
+users = set()
+
 
 @sio.event
-def connect(sid: str, auth: dict[str, str]) -> None:
-    if auth["user"] == os.getenv("USERNM") and auth["pass"] == os.getenv("PASSWD"):
-        print(f"Contact established with '{sid}'.")
-    else:
-        return False
+def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
+    # if auth["user"] == os.getenv("USERNM") and auth["password"] == os.getenv("PASSWD"):
+    users.add(sid)
+    print(f"Contact established with '{sid}'.")
+    # else:
+    #     return False
 
 
 @sio.event
 def disconnect(sid: str) -> None:
+    users.remove(sid)
     print(f"Contact lost with '{sid}'.")
 
 
 @sio.event
-def contact(data: bytes) -> None:
-    global streaming
+def contact(_: str, data: bytes) -> None:
+    global streaming, speech_thread
 
     # stop text generation
     streaming = False
@@ -71,8 +73,9 @@ def contact(data: bytes) -> None:
 
     # start generating responses
     streaming = True
-    speech_thread = Thread(target=stream_responses, args=[voice, message])
-    speech_thread.start()
+    speech_thread = sio.start_background_task(
+        target=stream_responses, voice=voice, message=message
+    )
 
 
 def stream_responses(voice: str, message: str) -> None:
@@ -80,7 +83,7 @@ def stream_responses(voice: str, message: str) -> None:
     # if this is first generation
     if message:
         text_queue = generate_next_response(message)
-    while streaming:
+    while streaming and len(users):
         if not len(text_queue):
             # if nothing is in queue, regenerate
             text_queue = generate_next_response()
@@ -93,10 +96,11 @@ def stream_responses(voice: str, message: str) -> None:
         print(f"Voicing response: '{text}'.")
         # generate speech
         with cuda_lock:
-            speech_data = speak(voice, text)
+            speech_data = speak(voice, text, silent=False)
         # if successful, send to client
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)
+
             sio.emit("response", mp3.read())
 
 
@@ -126,7 +130,18 @@ def generate_next_response(message: str | None = None) -> str:
     return nltk.sent_tokenize(response)
 
 
-if __name__ == "__main__":
+def run_socketio() -> None:
+    """Function to handle the SocketIO server"""
+
+    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+
+
+# fmt: off
+@click.command()
+# fmt: on
+def respond() -> None:
+    global streaming
+
     load_whisper()
     load_hubert()
     load_bark()
@@ -135,4 +150,16 @@ if __name__ == "__main__":
 
     nltk.download("punkt_tab")
 
-    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+    socketio_thread = Thread(target=run_socketio)
+
+    # start socket connection
+    socketio_thread.start()
+    try:
+        socketio_thread.join()
+    except KeyboardInterrupt:
+        print("Program interrupted. Exiting...")
+        streaming = False
+
+
+if __name__ == "__main__":
+    respond()

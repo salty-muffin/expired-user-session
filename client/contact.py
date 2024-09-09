@@ -188,10 +188,6 @@ def run_socketio(endpoint: str) -> None:
         sio.disconnect()
 
 
-def get_seed() -> None:
-    sio.emit("seed", {"seed": 42})
-
-
 # fmt: off
 @click.command()
 @click.option("--samplerate", type=int,                        default=44100, help="The recording sample rate.")
@@ -211,8 +207,6 @@ def contact(**kwargs) -> None:
 
     # start socket connection
     socketio_thread.start()
-
-    print("Getting seed from environment.")
 
     # run main loop, while connected to the server
     print("Press 'space' to start recording, release to stop.")

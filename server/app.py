@@ -34,11 +34,11 @@ click_kwargs = {}
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
-    if auth["user"] == os.getenv("USERNM") and auth["password"] == os.getenv("PASSWD"):
-        users.add(sid)
-        print(f"Contact established with '{sid}'.")
-    else:
-        return False
+    # if auth["user"] == os.getenv("USERNM") and auth["password"] == os.getenv("PASSWD"):
+    users.add(sid)
+    print(f"Contact established with '{sid}'.")
+    # else:
+    #     return False
 
 
 @sio.event
@@ -134,11 +134,6 @@ def generate_next_response(message: str | None = None) -> str:
 
     return nltk.sent_tokenize(response)
 
-@sio.event
-def seed(_: str, data: dict[str, int]) -> None:
-    print(f"Setting seed to {data["seed"]}.")
-    set_generator_seed(data["seed"])
-
 
 # fmt: off
 @click.command()
@@ -155,6 +150,7 @@ def respond(**kwargs) -> None:
     load_hubert()
     load_bark()
     load_generator(kwargs["model"])
+    set_generator_seed(42)
 
     nltk.download("punkt_tab")
 

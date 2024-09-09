@@ -99,7 +99,7 @@ def stream_responses(voice: str, message: str) -> None:
         print(f"Voicing response: '{text}'.")
         # generate speech
         with cuda_lock:
-            speech_data = speak(voice, text)
+            speech_data = speak(voice, text, silent=click_kwargs["silent"])
         # if successful, send to client
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)

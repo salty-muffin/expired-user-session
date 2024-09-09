@@ -133,17 +133,11 @@ def generate_next_response(message: str | None = None) -> str:
     return nltk.sent_tokenize(response)
 
 
-def run_socketio() -> None:
-    """Function to handle the SocketIO server"""
-
-    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
-
-
 # fmt: off
 @click.command()
 # fmt: on
 def respond() -> None:
-    global streaming
+    global streaming, speech_thread
 
     load_whisper()
     load_hubert()
@@ -153,15 +147,14 @@ def respond() -> None:
 
     nltk.download("punkt_tab")
 
-    socketio_thread = Thread(target=run_socketio)
-
     # start socket connection
-    socketio_thread.start()
     try:
-        socketio_thread.join()
+        eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
         streaming = False
+
+        speech_thread.join()
 
 
 if __name__ == "__main__":

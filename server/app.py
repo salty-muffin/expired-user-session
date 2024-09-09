@@ -68,7 +68,7 @@ def contact(_: str, data: bytes) -> None:
         voice = clone_voice(sound_path)
 
     # wait for previous generation to finish
-    if speech_thread and speech_thread.is_alive():
+    if speech_thread:
         speech_thread.join()
 
     # start generating responses
@@ -80,6 +80,7 @@ def contact(_: str, data: bytes) -> None:
 
 def stream_responses(voice: str, message: str) -> None:
     text_queue = []
+    first_response = True
     # if this is first generation
     if message:
         text_queue = generate_next_response(message)
@@ -101,7 +102,9 @@ def stream_responses(voice: str, message: str) -> None:
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)
 
-            sio.emit("response", mp3.read())
+            sio.emit("first_response" if first_response else "response", mp3.read())
+            sio.sleep(1)
+            first_response = False
 
 
 def generate_next_response(message: str | None = None) -> str:

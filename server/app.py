@@ -169,7 +169,8 @@ def respond(**kwargs) -> None:
         print("Program interrupted. Exiting...")
         streaming = False
 
-        speech_thread.join()
+        if speech_thread:
+            speech_thread.join()
 
 
 if __name__ == "__main__":

@@ -18,7 +18,8 @@
             "program": "client/contact.py",
             "args": [
                 "--endpoint=https://session.ghostsonthe.net",
-                "--breaktime=0.5"
+                "--breaktime=0.5",
+                // "--playall"
             ],
             "console": "integratedTerminal"
         },

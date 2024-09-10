@@ -42,8 +42,8 @@ click_kwargs = {}
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
-    # if not auth["password"] == os.getenv("PASSWD") or len(users):
-    #     return False
+    if not auth["password"] == os.getenv("PASSWORD") or len(users):
+        return False
 
     users.add(sid)
     print(f"Contact established with '{sid}'.")

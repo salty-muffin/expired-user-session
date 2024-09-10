@@ -29,7 +29,7 @@ const addCursor = (element: HTMLElement) => {
 	cursor.setAttribute('id', 'cursor');
 	cursor.style.width = `${dimensions.width}px`;
 	cursor.style.height = `${dimensions.height}px`;
-	cursor.style.top = `${(lines.length - 1) * dimensions.width}px`;
+	cursor.style.top = `${(lines.length - 1) * dimensions.height}px`;
 	cursor.style.left = `${lines[lines.length - 1].length * dimensions.width}px`;
 	element.parentElement?.appendChild(cursor);
 };

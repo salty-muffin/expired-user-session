@@ -6,9 +6,9 @@ from threading import Thread, Lock
 from dotenv import load_dotenv
 import nltk
 
-from stt import load_whisper, transcribe_audio
-from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
-from text_generator import load_generator, set_generator_seed, generate
+from modules.stt import load_whisper, transcribe_audio
+from modules.tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
+from modules.text_generator import load_generator, set_generator_seed, generate
 
 from prompts import question_prompt, continuation_prompt
 
@@ -18,7 +18,7 @@ sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(
     sio,
     static_files={
-        "/": "/public",
+        "/": "/client/dist",
     },
 )
 

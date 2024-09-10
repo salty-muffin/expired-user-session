@@ -1,6 +1,7 @@
+import '@fontsource/ubuntu-mono';
 import './style.css';
 
-import { log } from './logging';
+import { log, logCursor } from './logging';
 
 import { io } from 'socket.io-client';
 
@@ -22,6 +23,9 @@ let timeout: number | null = null;
 const player: HTMLAudioElement | null = document.getElementById(
 	'player'
 ) as HTMLAudioElement | null;
+const terminal: HTMLPreElement | null = document.getElementById(
+	'terminal'
+) as HTMLPreElement | null;
 
 // request permission for microphone and video
 let stream: MediaStream;
@@ -31,23 +35,25 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 	} catch (error) {
 		console.error(`The following getUserMedia error occurred: '${error}'.`);
 	}
-else log(null, 'getUserMedia not supported on your browser!');
+else log(terminal, 'getUserMedia not supported on your browser!');
+
+logCursor(terminal, 'Password: ');
 
 // websocket connection with socket.io
 const socket = io(window.location.host, {
 	// auth: { user: 'seance', password: 'juergenson' }
 });
 
-log(null, "Press 'space' to start recording audio, release to stop.");
+// log(terminal, "Press 'space' to start recording audio, release to stop.");
 
 // connect to the server and get the video seed when ready
 socket.on('connect', () => {
-	log(null, 'Connected to server, obtaining video seed...');
+	log(terminal, 'Connected to server, obtaining video seed...');
 	getSeedFromCamera();
 });
 
 socket.on('disconnect', () => {
-	log(null, 'Lost connection to the server.');
+	log(terminal, 'Lost connection to the server.');
 });
 
 // handle responses
@@ -119,7 +125,7 @@ const startRecording = () => {
 		};
 
 		mediaRecorder.onstop = () => {
-			log(null, 'Recording stopped.');
+			log(terminal, 'Recording stopped.');
 			const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
 			audioChunks = [];
 			sendAudioToServer(audioBlob);
@@ -127,7 +133,7 @@ const startRecording = () => {
 		};
 
 		mediaRecorder.start();
-		log(null, 'Recording started...');
+		log(terminal, 'Recording started...');
 	} else throw Error('No MediaStream found for recording.');
 };
 
@@ -151,7 +157,7 @@ const sendAudioToServer = (audioBlob: Blob) => {
 
 // handle audio response from server and play it back
 const handleServerResponse = (data: BinaryData) => {
-	log(null, 'Received response.');
+	log(terminal, 'Received response.');
 	audioBlobQueue.push(new Blob([data], { type: 'audio/mp3' }));
 };
 
@@ -177,7 +183,7 @@ const getSeedFromCamera = async () => {
 					seed += pixels[i]; // sum the red channel for simplicity
 				}
 
-				log(null, `Generated seed: ${seed}.`);
+				log(terminal, `Generated seed: ${seed}.`);
 				socket.emit('seed', { seed: seed });
 			}
 			// stop the video stream

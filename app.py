@@ -18,7 +18,10 @@ sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(
     sio,
     static_files={
-        "/": "/client/dist",
+        "/": "./client/dist/index.html",
+        "/favicon.png": "./client/dist/favicon.png",
+        "/favicon.svg": "./client/dist/favicon.svg",
+        "/assets": "./client/dist/assets",
     },
 )
 
@@ -39,8 +42,8 @@ click_kwargs = {}
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
-    if not auth["password"] == os.getenv("PASSWD") or len(users):
-        return False
+    # if not auth["password"] == os.getenv("PASSWD") or len(users):
+    #     return False
 
     users.add(sid)
     print(f"Contact established with '{sid}'.")
@@ -61,7 +64,7 @@ def contact(_: str, data: bytes) -> None:
 
     # write the mp3 data to disk as file
     os.makedirs("temp", exist_ok=True)
-    sound_path = os.path.join("temp", "message.mp3")
+    sound_path = os.path.join("temp", "message.wav")
     with open(sound_path, "wb") as f:
         f.write(data)
 

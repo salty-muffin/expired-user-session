@@ -20,7 +20,7 @@ else console.log('getUserMedia not supported on your browser!');
 
 // websocket connection with socket.io
 const socket = io(window.location.host, {
-	auth: { user: 'yourUsername', password: 'yourPassword' }
+	// auth: { user: 'seance', password: 'juergenson' }
 });
 
 console.log("Press 'space' to start recording audio, release to stop.");
@@ -135,7 +135,11 @@ const getSeedFromCamera = async () => {
 				socket.emit('seed', { seed: seed });
 			}
 			// stop the video stream
-			stream.getTracks().forEach((track) => track.stop());
+			stream.getTracks().forEach((track) => {
+				if (track.kind === 'video') {
+					track.stop();
+				}
+			});
 		});
 	} else throw Error('No MediaStream found for capturing.');
 };

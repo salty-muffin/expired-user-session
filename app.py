@@ -44,7 +44,7 @@ click_kwargs = {}
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
     if not auth["password"] == os.getenv("PASSWORD"):
         raise ConnectionRefusedError("Authentication failed.")
-    if not len(users):
+    if len(users):
         raise ConnectionRefusedError("Only one user at a time.")
 
     users.add(sid)
@@ -176,7 +176,9 @@ def run_socketio() -> None:
 @click.option("--wait", type=click.FloatRange(1.0), default=1.0,           help="Waittime after each socketio emit.")
 @click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
 @click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
-@click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="Temperature for the text generation")
+@click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
+@click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
 # fmt: on
 def respond(**kwargs) -> None:
     global streaming, speech_thread, click_kwargs

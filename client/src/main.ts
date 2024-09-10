@@ -92,6 +92,7 @@ const stopRecording = () => {
 
 // send the recorded audio to the server
 const sendAudioToServer = (audioBlob: Blob) => {
+	// const mp3Blob = convertToMP3(audioBlob);
 	const reader = new FileReader();
 	reader.readAsArrayBuffer(audioBlob);
 	reader.onloadend = () => {

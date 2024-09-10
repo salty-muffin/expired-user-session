@@ -67,16 +67,22 @@ const main = async (pass: string) => {
 		auth: { user: 'seance', password: pass }
 	});
 
-	log(terminal, "Press 'space' to start recording audio, release to stop.");
-
 	// connect to the server and get the video seed when ready
-	socket.on('connect', () => {
+	socket.on('connect', async () => {
 		log(terminal, 'Connected to server, obtaining video seed...');
-		getSeedFromCamera();
+		await getSeedFromCamera();
+		log(terminal, "Press 'space' to start recording audio, release to stop.");
 	});
 
 	socket.on('disconnect', () => {
 		log(terminal, 'Lost connection to the server.');
+	});
+
+	socket.on('connect_error', (error) => {
+		if (!socket.active) {
+			// the connection was denied by the server
+			log(terminal, error.message);
+		}
 	});
 
 	// handle responses

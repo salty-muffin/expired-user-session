@@ -42,8 +42,10 @@ click_kwargs = {}
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
-    if not auth["password"] == os.getenv("PASSWORD") or len(users):
-        return False
+    if not auth["password"] == os.getenv("PASSWORD"):
+        raise ConnectionRefusedError("Authentication failed.")
+    if not len(users):
+        raise ConnectionRefusedError("Only one user at a time.")
 
     users.add(sid)
     print(f"Contact established with '{sid}'.")
@@ -108,7 +110,13 @@ def stream_responses(voice: str, message: str) -> None:
         # generate speech
         with cuda_lock:
             try:
-                speech_data = speak(voice, text, silent=click_kwargs["silent"])
+                speech_data = speak(
+                    voice,
+                    text,
+                    text_temp=click_kwargs["bark_text_temp"],
+                    waveform_temp=click_kwargs["bark_wave_temp"],
+                    silent=click_kwargs["silent"],
+                )
             except Exception:
                 speech_data = []
                 sio.send("Please try again.")
@@ -135,6 +143,7 @@ def generate_next_response(message: str | None = None) -> str:
     response_lines = (
         generate(
             prompt,
+            temperature=click_kwargs["gpt_temp"],
             max_new_tokens=128,
             do_sample=True,
         )
@@ -162,9 +171,12 @@ def run_socketio() -> None:
 
 # fmt: off
 @click.command()
-@click.option("--model",  type=str, required=True,                 help="The transformer model for speech generation.")
-@click.option("--silent", is_flag=True,                            help="Don't output voice generation progress bars.")
-@click.option("--wait",   type=click.FloatRange(1.0), default=1.0, help="Waittime after each socketio emit.")
+@click.option("--model", type=str, required=True,                          help="The transformer model for speech generation.")
+@click.option("--silent", is_flag=True,                                    help="Don't output voice generation progress bars.")
+@click.option("--wait", type=click.FloatRange(1.0), default=1.0,           help="Waittime after each socketio emit.")
+@click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
+@click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
+@click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="Temperature for the text generation")
 # fmt: on
 def respond(**kwargs) -> None:
     global streaming, speech_thread, click_kwargs

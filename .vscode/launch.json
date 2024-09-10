@@ -30,7 +30,10 @@
             "program": "app.py",
             "args": [
                 "--model=facebook/opt-1.3b",
-                // "--silent"
+                // "--silent",
+                "--bark_text_temp=0.7",
+                "--bark_wave_temp=0.7",
+                "--gpt_temp=1.0"
             ],
             "console": "integratedTerminal"
         },

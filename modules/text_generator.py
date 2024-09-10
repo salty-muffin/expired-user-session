@@ -26,7 +26,7 @@ def set_generator_seed(seed: int) -> None:
 
 def generate(prompt: str, **kwargs) -> str:
     # max_new_tokens=128,
-    # temperature=0.7,
+    # temperature=1.0,
     # top_k=50,
     # top_p=1.0,
     return generator(prompt, pad_token_id=generator.tokenizer.eos_token_id, **kwargs)[

@@ -144,6 +144,8 @@ def generate_next_response(message: str | None = None) -> str:
         generate(
             prompt,
             temperature=click_kwargs["gpt_temp"],
+            top_k=click_kwargs["gpt_top_k"],
+            top_p=click_kwargs["gpt_top_p"],
             max_new_tokens=128,
             do_sample=True,
         )

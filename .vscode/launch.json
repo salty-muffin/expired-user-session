@@ -33,7 +33,9 @@
                 // "--silent",
                 "--bark_text_temp=0.7",
                 "--bark_wave_temp=0.7",
-                "--gpt_temp=1.0"
+                "--gpt_temp=1.0",
+                "--gpt_top_k=50",
+                "--gpt_top_p=1.0",
             ],
             "console": "integratedTerminal"
         },

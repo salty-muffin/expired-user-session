@@ -1,12 +1,27 @@
 import './style.css';
 
+import { log } from './logging';
+
 import { io } from 'socket.io-client';
+
+// settings
+const INTERVAL = 0;
+const PLAYALL = false;
 
 // global variables
 let isRecording = false;
 let isFirstResponse = false;
 let audioChunks: BlobPart[] = [];
 let mediaRecorder: MediaRecorder;
+let audioBlobQueue: Blob[] = [];
+
+let interval: number | null = null;
+let timeout: number | null = null;
+
+// elements
+const player: HTMLAudioElement | null = document.getElementById(
+	'player'
+) as HTMLAudioElement | null;
 
 // request permission for microphone and video
 let stream: MediaStream;
@@ -16,23 +31,23 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 	} catch (error) {
 		console.error(`The following getUserMedia error occurred: '${error}'.`);
 	}
-else console.log('getUserMedia not supported on your browser!');
+else log(null, 'getUserMedia not supported on your browser!');
 
 // websocket connection with socket.io
 const socket = io(window.location.host, {
 	// auth: { user: 'seance', password: 'juergenson' }
 });
 
-console.log("Press 'space' to start recording audio, release to stop.");
+log(null, "Press 'space' to start recording audio, release to stop.");
 
 // connect to the server and get the video seed when ready
 socket.on('connect', () => {
-	console.log('Connected to server, obtaining video seed...');
+	log(null, 'Connected to server, obtaining video seed...');
 	getSeedFromCamera();
 });
 
 socket.on('disconnect', () => {
-	console.log('Lost connection to the server.');
+	log(null, 'Lost connection to the server.');
 });
 
 // handle responses
@@ -42,7 +57,7 @@ socket.on('first_response', (data) => {
 });
 
 socket.on('response', (data) => {
-	if (!isFirstResponse) handleServerResponse(data);
+	if (!isFirstResponse || PLAYALL) handleServerResponse(data);
 });
 
 // event listeners for spacebar key press/release
@@ -57,12 +72,45 @@ window.addEventListener('keyup', (event) => {
 	if (event.code === 'Space' && isRecording) {
 		isRecording = false;
 		stopRecording();
+
+		// start playback loop
+		interval = setInterval(playQueue, 100);
 	}
 });
+
+const playQueue = () => {
+	if (player?.paused && audioBlobQueue.length) {
+		timeout = setTimeout(() => {
+			const audioBlob = audioBlobQueue.shift();
+			if (audioBlob) {
+				const audioUrl = URL.createObjectURL(audioBlob);
+				player.src = audioUrl;
+				player.play();
+			}
+		}, INTERVAL);
+	}
+};
 
 // start recording audio
 const startRecording = () => {
 	if (stream) {
+		// stop playback
+		if (player) {
+			player.pause();
+			player.currentTime = 0;
+		}
+		if (interval) {
+			clearInterval(interval);
+			interval = null;
+		}
+		if (timeout) {
+			clearTimeout(timeout);
+			timeout = null;
+		}
+		// clear queue
+		audioBlobQueue = [];
+
+		// record new audio
 		mediaRecorder = new MediaRecorder(stream);
 		audioChunks = [];
 
@@ -71,6 +119,7 @@ const startRecording = () => {
 		};
 
 		mediaRecorder.onstop = () => {
+			log(null, 'Recording stopped.');
 			const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
 			audioChunks = [];
 			sendAudioToServer(audioBlob);
@@ -78,7 +127,7 @@ const startRecording = () => {
 		};
 
 		mediaRecorder.start();
-		console.log('Recording started...');
+		log(null, 'Recording started...');
 	} else throw Error('No MediaStream found for recording.');
 };
 
@@ -86,7 +135,6 @@ const startRecording = () => {
 const stopRecording = () => {
 	if (mediaRecorder && mediaRecorder.state === 'recording') {
 		mediaRecorder.stop();
-		console.log('Recording stopped.');
 	}
 };
 
@@ -103,10 +151,8 @@ const sendAudioToServer = (audioBlob: Blob) => {
 
 // handle audio response from server and play it back
 const handleServerResponse = (data: BinaryData) => {
-	const audioBlob = new Blob([data], { type: 'audio/mp3' });
-	const audioUrl = URL.createObjectURL(audioBlob);
-	const audio = new Audio(audioUrl);
-	audio.play();
+	log(null, 'Received response.');
+	audioBlobQueue.push(new Blob([data], { type: 'audio/mp3' }));
 };
 
 // video capture and seed calculation
@@ -131,7 +177,7 @@ const getSeedFromCamera = async () => {
 					seed += pixels[i]; // sum the red channel for simplicity
 				}
 
-				console.log(`Generated seed: ${seed}.`);
+				log(null, `Generated seed: ${seed}.`);
 				socket.emit('seed', { seed: seed });
 			}
 			// stop the video stream
@@ -140,6 +186,8 @@ const getSeedFromCamera = async () => {
 					track.stop();
 				}
 			});
+			video.srcObject = null;
+			video.remove();
 		});
 	} else throw Error('No MediaStream found for capturing.');
 };

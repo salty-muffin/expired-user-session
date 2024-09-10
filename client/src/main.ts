@@ -180,7 +180,7 @@ const main = async (pass: string) => {
 
 	// handle audio response from server and play it back
 	const handleServerResponse = (data: BinaryData) => {
-		log(terminal, 'Received response.');
+		console.log('Received response.');
 		audioBlobQueue.push(new Blob([data], { type: 'audio/mp3' }));
 	};
 

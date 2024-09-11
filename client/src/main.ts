@@ -35,10 +35,7 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 	}
 else log(terminal, 'getUserMedia not supported on your browser!');
 
-log(
-	terminal,
-	"This is 'expired user session' by Zeno Gries. Please prepare a question for a dead user."
-);
+log(terminal, terminal?.innerText ?? '');
 log(terminal, '');
 
 logCursor(terminal, 'Password: ');
@@ -71,7 +68,7 @@ const main = async (pass: string) => {
 	socket.on('connect', async () => {
 		log(terminal, 'Connected to server, obtaining video seed...');
 		await getSeedFromCamera();
-		log(terminal, "Press 'space' to start recording audio, release to stop.");
+		log(terminal, "Press 'space' to start recording a question, release to stop.");
 	});
 
 	socket.on('disconnect', () => {

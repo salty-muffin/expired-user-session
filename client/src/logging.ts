@@ -2,10 +2,12 @@ let lines: String[] = [];
 let cursor: HTMLDivElement | null = null;
 
 export const log = (element: HTMLElement | null = null, ...args: any) => {
-	console.log(...args);
+	if (args.length && typeof args[0] == 'string' && args[0].length) console.log(...args);
 	lines.push(args.map((arg: any) => String(arg)).join(' '));
 	if (element) element.innerHTML = lines.join('<br />');
 	if (cursor) removeCursor();
+	// scroll to bottom
+	window.scrollTo(0, document.body.scrollHeight);
 };
 
 export const logCursor = (element: HTMLElement | null = null, ...args: any) => {
@@ -15,12 +17,16 @@ export const logCursor = (element: HTMLElement | null = null, ...args: any) => {
 		element.innerHTML = lines.join('<br />');
 		addCursor(element);
 	}
+	// scroll to bottom
+	window.scrollTo(0, document.body.scrollHeight);
 };
 
 export const clearLog = (element: HTMLElement | null = null) => {
 	lines = [];
 	if (element) element.innerHTML = '';
 	if (cursor) removeCursor();
+	// scroll to top
+	window.scrollTo(0, 0);
 };
 
 const addCursor = (element: HTMLElement) => {

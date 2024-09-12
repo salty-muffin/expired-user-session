@@ -46,9 +46,12 @@ def test(message: str, model: str, temp: float, top_k: int, top_p: float) -> Non
     set_generator_seed(int(time.time()))
 
     print(f"0: {generate_next_response(temp, top_k, top_p, message)}")
-    for i in range(1, 10):
+    for i in range(1, 5):
         print(f"{i}: {generate_next_response(temp, top_k, top_p)}")
 
 
 if __name__ == "__main__":
-    test("Is there a hell?", "facebook/opt-1.3b", 1.0, 50, 1.0)
+    try:
+        test("Is there a hell?", "facebook/opt-1.3b", 1.0, 50, 1.0)
+    except KeyboardInterrupt:
+        pass

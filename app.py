@@ -6,16 +6,24 @@ from threading import Thread, Lock
 from dotenv import load_dotenv
 import nltk
 
-from stt import load_whisper, transcribe_audio
-from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
-from text_generator import load_generator, set_generator_seed, generate
+from modules.stt import load_whisper, transcribe_audio
+from modules.tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
+from modules.text_generator import load_generator, set_generator_seed, generate
 
 from prompts import question_prompt, continuation_prompt
 
 load_dotenv()
 
 sio = socketio.Server(ping_timeout=60)
-app = socketio.WSGIApp(sio)
+app = socketio.WSGIApp(
+    sio,
+    static_files={
+        "/": "./client/dist/index.html",
+        "/favicon.png": "./client/dist/favicon.png",
+        "/favicon.svg": "./client/dist/favicon.svg",
+        "/assets": "./client/dist/assets",
+    },
+)
 
 voice = ""
 
@@ -34,8 +42,10 @@ click_kwargs = {}
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
-    if not auth["password"] == os.getenv("PASSWD") or len(users):
-        return False
+    if not auth["password"] == os.getenv("PASSWORD"):
+        raise ConnectionRefusedError("Authentication failed.")
+    if len(users):
+        raise ConnectionRefusedError("Only one user at a time.")
 
     users.add(sid)
     print(f"Contact established with '{sid}'.")
@@ -56,7 +66,7 @@ def contact(_: str, data: bytes) -> None:
 
     # write the mp3 data to disk as file
     os.makedirs("temp", exist_ok=True)
-    sound_path = os.path.join("temp", "message.mp3")
+    sound_path = os.path.join("temp", "message.wav")
     with open(sound_path, "wb") as f:
         f.write(data)
 
@@ -100,7 +110,13 @@ def stream_responses(voice: str, message: str) -> None:
         # generate speech
         with cuda_lock:
             try:
-                speech_data = speak(voice, text, silent=click_kwargs["silent"])
+                speech_data = speak(
+                    voice,
+                    text,
+                    text_temp=click_kwargs["bark_text_temp"],
+                    waveform_temp=click_kwargs["bark_wave_temp"],
+                    silent=click_kwargs["silent"],
+                )
             except Exception:
                 speech_data = []
                 sio.send("Please try again.")
@@ -127,6 +143,9 @@ def generate_next_response(message: str | None = None) -> str:
     response_lines = (
         generate(
             prompt,
+            temperature=click_kwargs["gpt_temp"],
+            top_k=click_kwargs["gpt_top_k"],
+            top_p=click_kwargs["gpt_top_p"],
             max_new_tokens=128,
             do_sample=True,
         )
@@ -140,23 +159,28 @@ def generate_next_response(message: str | None = None) -> str:
     return nltk.sent_tokenize(response)
 
 
-def run_socketio() -> None:
-    """Function to handle the SocketIO server"""
-
-    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
-
-
 @sio.event
 def seed(_: str, data: dict[str, int]) -> None:
     print(f"Received seed: {data['seed']}.")
     set_generator_seed(data["seed"])
 
 
+def run_socketio() -> None:
+    """Function to handle the SocketIO server"""
+
+    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+
+
 # fmt: off
 @click.command()
-@click.option("--model",  type=str, required=True,                 help="The transformer model for speech generation.")
-@click.option("--silent", is_flag=True,                            help="Don't output voice generation progress bars.")
-@click.option("--wait",   type=click.FloatRange(1.0), default=1.0, help="Waittime after each socketio emit.")
+@click.option("--model", type=str, required=True,                          help="The transformer model for speech generation.")
+@click.option("--silent", is_flag=True,                                    help="Don't output voice generation progress bars.")
+@click.option("--wait", type=click.FloatRange(1.0), default=1.0,           help="Waittime after each socketio emit.")
+@click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
+@click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
+@click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
+@click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
 # fmt: on
 def respond(**kwargs) -> None:
     global streaming, speech_thread, click_kwargs

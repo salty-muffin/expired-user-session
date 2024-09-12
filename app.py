@@ -5,6 +5,7 @@ import socketio
 from threading import Thread, Lock
 from dotenv import load_dotenv
 import nltk
+import random
 
 from modules.stt import load_whisper, transcribe_audio
 from modules.tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
@@ -91,21 +92,10 @@ def contact(_: str, data: bytes) -> None:
 
 
 def stream_responses(voice: str, message: str) -> None:
-    text_queue = []
     first_response = True
     # if this is first generation
-    if message:
-        text_queue = generate_next_response(message)
+    text = generate_next_response(message)
     while streaming and len(users):
-        if not len(text_queue):
-            # if nothing is in queue, regenerate
-            text_queue = generate_next_response()
-            # use this opportunity to quit, if not required to continue
-            if not streaming:
-                break
-
-        # get next item for tts
-        text = text_queue.pop(0)
         print(f"Voicing response: '{text}'.")
         # generate speech
         with cuda_lock:
@@ -121,6 +111,11 @@ def stream_responses(voice: str, message: str) -> None:
                 speech_data = []
                 sio.send("Please try again.")
                 sio.sleep(1)
+
+        # use this opportunity to quit, if not required to continue
+        if not streaming:
+            break
+
         # if successful, send to client
         if speech_data is not None:
             mp3 = convert_audio_to_mp3(speech_data)
@@ -128,6 +123,9 @@ def stream_responses(voice: str, message: str) -> None:
             sio.emit("first_response" if first_response else "response", mp3.read())
             sio.sleep(click_kwargs["wait"])
             first_response = False
+
+        # regenerate
+        text = generate_next_response()
 
 
 def generate_next_response(message: str | None = None) -> str:
@@ -156,7 +154,9 @@ def generate_next_response(message: str | None = None) -> str:
     response = response_lines[0]
     responses.append(response)
 
-    return nltk.sent_tokenize(response)
+    sentences = nltk.sent_tokenize(response)
+    sentence = sentences[random.randint(0, len(sentences) - 1)]
+    return sentence
 
 
 @sio.event
@@ -187,7 +187,7 @@ def respond(**kwargs) -> None:
 
     click_kwargs = kwargs
 
-    load_whisper()
+    load_whisper("small.en")
     load_hubert()
     load_bark()
     load_generator(kwargs["model"])

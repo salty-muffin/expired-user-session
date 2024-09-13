@@ -138,19 +138,22 @@ def generate_next_response(message: str | None = None) -> str:
     else:
         prompt = continuation_prompt.format(" ".join(responses))
 
-    response_lines = (
-        generate(
-            prompt,
-            temperature=click_kwargs["gpt_temp"],
-            top_k=click_kwargs["gpt_top_k"],
-            top_p=click_kwargs["gpt_top_p"],
-            max_new_tokens=128,
-            do_sample=True,
+    with cuda_lock:
+        response_lines = (
+            generate(
+                prompt,
+                temperature=click_kwargs["gpt_temp"],
+                top_k=click_kwargs["gpt_top_k"],
+                top_p=click_kwargs["gpt_top_p"],
+                max_new_tokens=128,
+                do_sample=True,
+            )
+            .replace(prompt, "")
+            .split("\n")
         )
-        .replace(prompt, "")
-        .split("\n")
-    )
     response_lines = [line.strip() for line in response_lines if line]
+    if not len(response_lines):
+        return "..."
     response = response_lines[0]
     responses.append(response)
 

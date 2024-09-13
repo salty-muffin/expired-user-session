@@ -167,3 +167,4 @@ speaker_embeddings/
 input/
 data/
 temp/
+dead-profiles/*/profiles/

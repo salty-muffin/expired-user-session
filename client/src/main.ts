@@ -68,9 +68,7 @@ const main = async (pass: string) => {
 	socket.on('connect', async () => {
 		log(terminal, 'Connected to server, obtaining video seed...');
 		await getSeedFromCamera();
-		setTimeout(() => {
-			log(terminal, "Press 'space' to start recording a question, release to stop.");
-		}, 1000);
+		log(terminal, "Press 'space' to start recording a question, release to stop.");
 	});
 
 	socket.on('disconnect', () => {

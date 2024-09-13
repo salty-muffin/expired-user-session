@@ -10,12 +10,27 @@ let currentMaxScrollTime = 0;
 let currentStartTime = 0;
 const delay = { min: 10, max: 50 }; // 5 seconds delay
 
+const fadeDelay = 2 * 60 * 1000;
+const fadeTime = 8 * 60;
+
 const resetChance = 0.001;
 
 let currentIndex = 0;
 let scrollFinished = true;
 
 const frame = document.getElementById('frame') as HTMLIFrameElement | null;
+const cover = document.getElementById('cover') as HTMLDivElement | null;
+
+const urlParams = new URLSearchParams(window.location.search);
+console.log('fading:', Boolean(urlParams.get('fade')));
+
+if (urlParams.get('fade') && cover) {
+	setTimeout(() => {
+		console.log('Fading now.');
+		cover.style.transition = `opacity ${fadeTime}s linear`;
+		cover.classList.add('fade');
+	}, fadeDelay);
+}
 
 const getRandomInt = (attribute: { min: number; max: number }) => {
 	const min = Math.ceil(attribute.min);

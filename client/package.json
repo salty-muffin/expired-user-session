@@ -9,7 +9,6 @@
 		"preview": "vite preview"
 	},
 	"devDependencies": {
-		"@breezystack/lamejs": "^1.2.7",
 		"@fontsource/ubuntu-mono": "^5.0.22",
 		"prettier": "^3.3.3",
 		"socket.io-client": "^4.7.5",

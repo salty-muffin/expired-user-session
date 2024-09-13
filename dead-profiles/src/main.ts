@@ -1,3 +1,4 @@
+import '@fontsource/ubuntu-mono';
 import './style.css';
 import { paths } from './profiles.json';
 

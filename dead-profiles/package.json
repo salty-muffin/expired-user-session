@@ -1,0 +1,17 @@
+{
+  "name": "dead-profiles",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npx vite-node src/grab-profiles.ts && vite",
+    "build": "tsc && npx vite-node src/grab-profiles.ts && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.1"
+  }
+}

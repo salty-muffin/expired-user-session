@@ -1,5 +1,6 @@
 import nltk
 import time
+import random
 
 from modules.text_generator import load_generator, set_generator_seed, generate
 
@@ -36,7 +37,9 @@ def generate_next_response(
     response = response_lines[0]
     responses.append(response)
 
-    return nltk.sent_tokenize(response)
+    sentences = nltk.sent_tokenize(response)
+    sentence = sentences[random.randint(0, len(sentences) - 1)]
+    return sentence
 
 
 def test(message: str, model: str, temp: float, top_k: int, top_p: float) -> None:
@@ -52,6 +55,6 @@ def test(message: str, model: str, temp: float, top_k: int, top_p: float) -> Non
 
 if __name__ == "__main__":
     try:
-        test("Is there a hell?", "facebook/opt-1.3b", 1.0, 50, 1.0)
+        test("Is there a hell?", "facebook/opt-1.3b", 1.1, 50, 1.0)
     except KeyboardInterrupt:
         pass

@@ -20,4 +20,8 @@ def test(text: str, text_temp: float, waveform_temp: float) -> None:
 
 
 if __name__ == "__main__":
-    test("", 0.7, 0.7)
+    test(
+        "It is a place full of people who want to look good for their children — children who want more than their parents ever wanted.",
+        1.0,
+        0.6,
+    )

@@ -31,7 +31,11 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 	try {
 		stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
 	} catch (error) {
-		console.error(`The following getUserMedia error occurred: '${error}'.`);
+		log(terminal, `The following getUserMedia error occurred: '${error}'.`);
+		log(
+			terminal,
+			'Please make sure that a camera and microphone are connected and reload the page.'
+		);
 	}
 else log(terminal, 'getUserMedia not supported on your browser!');
 
@@ -223,6 +227,6 @@ const main = async (pass: string) => {
 				video.srcObject = null;
 				video.remove();
 			});
-		} else throw Error('No MediaStream found for capturing.');
+		} else log(terminal, 'No MediaStream found for capturing.');
 	};
 };

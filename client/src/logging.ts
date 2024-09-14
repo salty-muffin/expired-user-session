@@ -15,7 +15,9 @@ export const logCursor = (element: HTMLElement | null = null, ...args: any) => {
 	lines.push(args.map((arg: any) => String(arg)).join(' '));
 	if (element) {
 		element.innerHTML = lines.join('<br />');
-		addCursor(element);
+		document.fonts.ready.then(() => {
+			addCursor(element);
+		});
 	}
 	// scroll to bottom
 	window.scrollTo(0, document.body.scrollHeight);
@@ -37,6 +39,7 @@ const addCursor = (element: HTMLElement) => {
 	cursor.style.height = `${dimensions.height}px`;
 	cursor.style.top = `${(lines.length - 1) * dimensions.height}px`;
 	cursor.style.left = `${lines[lines.length - 1].length * dimensions.width}px`;
+	console.log(dimensions, lines[lines.length - 1].length, lines.length - 1);
 	element.parentElement?.appendChild(cursor);
 };
 

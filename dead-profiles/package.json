@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "npx vite-node src/grab-profiles.ts && vite",
-    "build": "tsc && npx vite-node src/grab-profiles.ts && vite build",
+    "build": "npx vite-node src/grab-profiles.ts && tsc && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {

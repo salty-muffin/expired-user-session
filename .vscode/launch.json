@@ -12,19 +12,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "client contact",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "client/contact.py",
-            "args": [
-                "--endpoint=https://session.ghostsonthe.net",
-                "--breaktime=0.5",
-                // "--playall"
-            ],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "server response",
+            "name": "server",
             "type": "debugpy",
             "request": "launch",
             "program": "app.py",

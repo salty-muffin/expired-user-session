@@ -190,7 +190,7 @@ def respond(**kwargs) -> None:
 
     click_kwargs = kwargs
 
-    load_whisper("small.en")
+    load_whisper("base.en")
     load_hubert()
     load_bark()
     load_generator(kwargs["model"])

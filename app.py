@@ -1,11 +1,16 @@
+# types
+from multiprocessing.connection import Connection
+from multiprocessing.synchronize import Event
+
 import os
 import click
 import eventlet
 import socketio
-from threading import Thread, Lock
 from dotenv import load_dotenv
 import nltk
 import random
+import multiprocessing as mp
+from threading import Thread
 
 import stt
 import tts
@@ -27,111 +32,147 @@ app = socketio.WSGIApp(
     },
 )
 
-voice = ""
+# multiprocessing communication objects
+receive_message, send_message = mp.Pipe()
+receive_response, send_response = mp.Pipe()
+no_users = mp.Event()
+no_users.set()
+exiting = mp.Event()
 
-responses = []
-
-speech_thread: Thread | None = None
-
-cuda_lock = Lock()
-
-streaming = False
-
+# socketio variables
 users = set()
 
-click_kwargs = {}
+# variables
+background_thread: Thread | None = None
+first_response = True
 
 
 @sio.event
 def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
+    """Gets called when a client connects."""
+
+    global background_thread
+
     if not auth["password"] == os.getenv("PASSWORD"):
         raise ConnectionRefusedError("Authentication failed.")
     if len(users):
         raise ConnectionRefusedError("Only one user at a time.")
 
     users.add(sid)
+    no_users.clear()
+
     print(f"Contact established with '{sid}'.")
+
+    # start thread to stream responses
+    background_thread = sio.start_background_task(target=send_responses)
+
+
+def send_responses() -> None:
+    """Sends the generated responses to the user. To be called in a seperate thread in the main process."""
+
+    global first_response
+
+    while not no_users.is_set() and not exiting.is_set():
+        response = receive_response.recv()
+        mp3 = convert_audio_to_mp3(response)
+        sio.emit("first_response" if first_response else "response", mp3.read())
+        first_response = False
+        sio.sleep(1)
 
 
 @sio.event
 def disconnect(sid: str) -> None:
+    """Gets called when a client disconnect."""
+
     users.remove(sid)
+    if not len(users):
+        no_users.set()
+
+        if background_thread:
+            background_thread.join()
+
     print(f"Contact lost with '{sid}'.")
 
 
 @sio.event
 def contact(_: str, data: bytes) -> None:
-    global streaming, speech_thread
+    """Gets called when a client sends a voice message."""
 
-    # stop text generation
-    streaming = False
+    global first_response
 
-    # write the mp3 data to disk as file
+    # write the sound data to disk as file
     os.makedirs("temp", exist_ok=True)
-    sound_path = os.path.join("temp", "message.wav")
-    with open(sound_path, "wb") as f:
+    message_path = os.path.join("temp", "message.wav")
+    with open(message_path, "wb") as f:
         f.write(data)
 
-    # transcribe the audio
-    with cuda_lock:
-        message = stt.transcribe_audio(sound_path)
-    print(f"Received message: '{message}'.")
-
-    # clone voice
-    with cuda_lock:
-        voice = tts.clone_voice(sound_path)
-
-    # wait for previous generation to finish
-    if speech_thread:
-        speech_thread.join()
-
-    # start generating responses
-    streaming = True
-    speech_thread = sio.start_background_task(
-        target=stream_responses, voice=voice, message=message
-    )
-
-
-def stream_responses(voice: str, message: str) -> None:
+    # send over the file path
     first_response = True
-    # if this is first generation
-    text = generate_next_response(message)
-    while streaming and len(users):
-        print(f"Voicing response: '{text}'.")
-        # generate speech
-        with cuda_lock:
-            try:
-                speech_data = tts.generate(
-                    voice,
-                    text,
-                    text_temp=click_kwargs["bark_text_temp"],
-                    waveform_temp=click_kwargs["bark_wave_temp"],
-                    silent=click_kwargs["silent"],
-                )
-            except Exception:
-                speech_data = []
-                sio.send("Please try again.")
-                sio.sleep(1)
-
-        # use this opportunity to quit, if not required to continue
-        if not streaming:
-            break
-
-        # if successful, send to client
-        if speech_data is not None:
-            mp3 = convert_audio_to_mp3(speech_data)
-
-            sio.emit("first_response" if first_response else "response", mp3.read())
-            sio.sleep(click_kwargs["wait"])
-            first_response = False
-
-        # regenerate
-        text = generate_next_response()
+    send_message.send(message_path)
 
 
-def generate_next_response(message: str | None = None) -> str:
-    global responses
+@sio.event
+def seed(_: str, data: dict[str, int]) -> None:
+    """Gets called when a client sends seed."""
 
+    print(f"Received seed: {data['seed']}.")
+    text_generator.set_generator_seed(data["seed"])
+
+
+def generate_responses(
+    receive: Connection,
+    send: Connection,
+    no_users: Event,
+    gpt_model: str,
+    whisper_model: str,
+    silent: bool,
+    bark_text_temp: float,
+    bark_wave_temp: float,
+    gpt_temp: float,
+    gpt_top_k: int,
+    gpt_top_p: float,
+) -> None:
+    """Generates the responses to be sent to the user. To be called in a seperate process."""
+
+    stt.load_whisper(whisper_model)
+    tts.load_hubert()
+    tts.load_bark()
+    text_generator.load_generator(gpt_model)
+
+    while not exiting.is_set():
+        # get the path to the message audio
+        message_path = receive.recv()
+
+        # transcribe message
+        message = stt.transcribe_audio(message_path)
+        print(f"Received message: '{message}'.")
+
+        # clone voice
+        voice = tts.clone_voice(message_path)
+
+        text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
+        # generate responses while no new message has been received and users are connected
+        while not receive.poll() and not no_users.is_set():
+            print(f"Voicing response: '{text}'.")
+
+            speech_data = tts.generate(
+                voice,
+                text,
+                text_temp=bark_text_temp,
+                waveform_temp=bark_wave_temp,
+                silent=silent,
+            )
+
+            send.send(speech_data)
+
+
+def next_response(
+    gpt_temp: float,
+    gpt_top_k: int,
+    gpt_top_p: float,
+    message: str | None = None,
+    responses=[],
+) -> str:
     if message:
         responses = []
 
@@ -139,13 +180,12 @@ def generate_next_response(message: str | None = None) -> str:
     else:
         prompt = continuation_prompt.format(" ".join(responses))
 
-    with cuda_lock:
         response_lines = (
             text_generator.generate(
                 prompt,
-                temperature=click_kwargs["gpt_temp"],
-                top_k=click_kwargs["gpt_top_k"],
-                top_p=click_kwargs["gpt_top_p"],
+                temperature=gpt_temp,
+                top_k=gpt_top_k,
+                top_p=gpt_top_p,
                 max_new_tokens=128,
                 do_sample=True,
             )
@@ -160,55 +200,44 @@ def generate_next_response(message: str | None = None) -> str:
 
     sentences = nltk.sent_tokenize(response)
     sentence = sentences[random.randint(0, len(sentences) - 1)]
-    return sentence
-
-
-@sio.event
-def seed(_: str, data: dict[str, int]) -> None:
-    print(f"Received seed: {data['seed']}.")
-    text_generator.set_generator_seed(data["seed"])
-
-
-def run_socketio() -> None:
-    """Function to handle the SocketIO server"""
-
-    eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
+    return sentence, responses
 
 
 # fmt: off
 @click.command()
-@click.option("--model", type=str, required=True,                          help="The transformer model for speech generation.")
+@click.option("--gpt_model", type=str, required=True,                      help="The transformer model for speech generation.")
+@click.option("--whisper_model", type=str, default="base",                 help="The whisper model for speech transcription.")
 @click.option("--silent", is_flag=True,                                    help="Don't output voice generation progress bars.")
-@click.option("--wait", type=click.FloatRange(1.0), default=1.0,           help="Waittime after each socketio emit.")
 @click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
 @click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
 @click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
 @click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
 # fmt: on
-def respond(**kwargs) -> None:
-    global streaming, speech_thread, click_kwargs
+def respond(**kwarks) -> None:
+    # download tokenization data for sentance splitting
+    nltk_path = os.path.join(os.getcwd(), "nltk_data")
+    nltk.download("punkt_tab", download_dir=nltk_path)
+    os.environ["NLTK_DATA"] = nltk_path
 
-    click_kwargs = kwargs
-
-    stt.load_whisper("base.en")
-    tts.load_hubert()
-    tts.load_bark()
-    text_generator.load_generator(kwargs["model"])
-
-    nltk.download("punkt_tab")
+    # start response process
+    response_process = mp.Process(
+        target=generate_responses,
+        args=(receive_message, send_response, no_users),
+        kwargs=kwarks,
+    )
+    response_process.start()
 
     # start socket connection
-    socketio_thread = Thread(target=run_socketio)
-    socketio_thread.start()
     try:
-        socketio_thread.join()
+        eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
     except KeyboardInterrupt:
         print("Program interrupted. Exiting...")
-        streaming = False
+    finally:
+        exiting.set()
 
-        if speech_thread:
-            speech_thread.join()
+        response_process.join()
+        background_thread.join()
 
 
 if __name__ == "__main__":

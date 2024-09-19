@@ -18,3 +18,4 @@ an ai version of the classic spirit box
 - [ ] backup models, etc. (especially if using original bark).
 - [ ] make dead-profiles page prettier.
 - [x] pick right whisper model
+- [ ] work over prompts and text generation method

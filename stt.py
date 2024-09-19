@@ -8,7 +8,7 @@ import whisper
 
 
 class Whisper:
-    def __init__(self, model_name="base", device: str | None = None) -> None:
+    def __init__(self, model_name, device: str | None = None) -> None:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
 

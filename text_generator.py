@@ -8,13 +8,13 @@ from transformers import pipeline, set_seed
 
 
 class TextGenerator:
-    def __init__(self, model="gpt2-medium", device: str | None = None) -> None:
+    def __init__(self, model_name, device: str | None = None) -> None:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
         print(f"Using {device} for text generation.")
 
-        self._generator = pipeline("text-generation", model=model, device=device)
+        self._generator = pipeline("text-generation", model=model_name, device=device)
 
     def set_generator_seed(self, seed: int) -> None:
         set_seed(seed)

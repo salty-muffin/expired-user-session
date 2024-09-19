@@ -35,9 +35,9 @@ app = socketio.WSGIApp(
 # multiprocessing communication objects
 receive_message, send_message = mp.Pipe()
 receive_response, send_response = mp.Pipe()
-no_users = mp.Event()
-no_users.set()
+users_connected = mp.Event()
 exiting = mp.Event()
+models_ready = mp.Event()
 
 # socketio variables
 users = set()
@@ -59,7 +59,7 @@ def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
         raise ConnectionRefusedError("Only one user at a time.")
 
     users.add(sid)
-    no_users.clear()
+    users_connected.set()
 
     print(f"Contact established with '{sid}'.")
 
@@ -72,7 +72,7 @@ def send_responses() -> None:
 
     global first_response
 
-    while not no_users.is_set() and not exiting.is_set():
+    while users_connected.is_set() and not exiting.is_set():
         response = receive_response.recv()
         mp3 = convert_audio_to_mp3(response)
         sio.emit("first_response" if first_response else "response", mp3.read())
@@ -86,7 +86,7 @@ def disconnect(sid: str) -> None:
 
     users.remove(sid)
     if not len(users):
-        no_users.set()
+        users_connected.clear()
 
         if background_thread:
             background_thread.join()
@@ -122,7 +122,8 @@ def seed(_: str, data: dict[str, int]) -> None:
 def generate_responses(
     receive: Connection,
     send: Connection,
-    no_users: Event,
+    users_connected: Event,
+    models_ready: Event,
     gpt_model: str,
     whisper_model: str,
     silent: bool,
@@ -139,7 +140,12 @@ def generate_responses(
     tts.load_bark()
     text_generator.load_generator(gpt_model)
 
+    models_ready.set()
+
     while not exiting.is_set():
+        # wait until a user connects
+        users_connected.wait()
+
         # get the path to the message audio
         message_path = receive.recv()
 
@@ -152,7 +158,7 @@ def generate_responses(
 
         text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
         # generate responses while no new message has been received and users are connected
-        while not receive.poll() and not no_users.is_set():
+        while not receive.poll():
             print(f"Voicing response: '{text}'.")
 
             speech_data = tts.generate(
@@ -223,10 +229,13 @@ def respond(**kwarks) -> None:
     # start response process
     response_process = mp.Process(
         target=generate_responses,
-        args=(receive_message, send_response, no_users),
+        args=(receive_message, send_response, users_connected, models_ready),
         kwargs=kwarks,
     )
     response_process.start()
+
+    # wait until the models are loaded
+    models_ready.wait()
 
     # start socket connection
     try:

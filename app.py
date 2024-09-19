@@ -121,9 +121,11 @@ def generate_responses(
     models_ready: Event,
     gpt_model: str,
     whisper_model: str,
+    bark_model: str,
     bark_text_temp: float,
     bark_wave_temp: float,
     use_float16: bool,
+    cpu_offload: bool,
     gpt_temp: float,
     gpt_top_k: int,
     gpt_top_p: float,
@@ -136,7 +138,7 @@ def generate_responses(
 
     stt = Whisper(whisper_model)
     cloner = VoiceCloner()
-    tts = Bark(use_float16=use_float16)
+    tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
     text_generator = TextGenerator(gpt_model)
 
     def next_response(
@@ -225,9 +227,11 @@ def generate_responses(
 @click.command()
 @click.option("--gpt_model", type=str, required=True,                      help="The transformer model for speech generation.")
 @click.option("--whisper_model", type=str, default="base",                 help="The whisper model for speech transcription.")
+@click.option("--bark_model", type=str, default="suno/bark",               help="The bark model for text to speech.")
 @click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
 @click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
-@click.option("--use_float16", is_flag=True,                               help="Wheather to use float16 instead of float32 for bark text to speech.")
+@click.option("--use_float16", is_flag=True,                               help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation).")
+@click.option("--cpu_offload", is_flag=True,                               help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time).")
 @click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
 @click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")

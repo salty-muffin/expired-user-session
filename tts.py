@@ -10,6 +10,7 @@ import torch
 import torchaudio
 
 from transformers import BarkProcessor, BarkModel
+from optimum.bettertransformer import BetterTransformer
 
 from encodec import EncodecModel
 from encodec.utils import convert_audio
@@ -86,7 +87,13 @@ class VoiceCloner:
 
 
 class Bark:
-    def __init__(self, device: str | None = None, use_float16=False) -> None:
+    def __init__(
+        self,
+        model_name,
+        device: str | None = None,
+        use_float16=False,
+        cpu_offload=False,
+    ) -> None:
 
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -97,18 +104,20 @@ class Bark:
             f"Using {self._device} with {'float16' if self._use_float16 else 'float32'} for bark text to speech."
         )
 
-        self._processor = BarkProcessor.from_pretrained("suno/bark")
+        self._processor = BarkProcessor.from_pretrained(model_name)
         self._model = (
             BarkModel.from_pretrained(
-                "suno/bark",
+                model_name,
                 torch_dtype=torch.float16,
             ).to(self._device)
             if self._use_float16
-            else BarkModel.from_pretrained("suno/bark").to(self._device)
+            else BarkModel.from_pretrained(model_name).to(self._device)
         )
 
         if "cuda" in self._device:
-            self._model = self._model.to_bettertransformer()
+            self._model = BetterTransformer.transform(self._model)
+            if cpu_offload:
+                self._model.enable_cpu_offload()
 
     @property
     def sample_rate(self) -> int:

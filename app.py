@@ -135,11 +135,6 @@ def generate_responses(
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator
 
-    stt = Whisper(whisper_model)
-    cloner = VoiceCloner()
-    tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
-    text_generator = TextGenerator(gpt_model)
-
     def next_response(
         gpt_temp: float,
         gpt_top_k: int,
@@ -176,50 +171,58 @@ def generate_responses(
         sentence = sentences[random.randint(0, len(sentences) - 1)]
         return sentence, responses
 
-    models_ready.set()
+    try:
+        stt = Whisper(whisper_model)
+        cloner = VoiceCloner()
+        tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
+        text_generator = TextGenerator(gpt_model)
 
-    seed = 0
+        models_ready.set()
 
-    while not exiting.is_set():
-        # wait until a user connects
-        users_connected.wait()
+        seed = 0
 
-        # get the path to the message audio
-        message_path = receive_message.recv()
+        while not exiting.is_set():
+            # wait until a user connects
+            users_connected.wait()
 
-        # transcribe message
-        message = stt.transcribe_audio(message_path)
-        print(f"Received message: '{message}'.")
+            # get the path to the message audio
+            message_path = receive_message.recv()
 
-        # clone voice
-        voice = cloner.clone(message_path)
+            # transcribe message
+            message = stt.transcribe_audio(message_path)
+            print(f"Received message: '{message}'.")
 
-        # get seed
-        if receive_seed.poll():
-            seed = receive_seed.recv()
-            text_generator.set_generator_seed(seed)
+            # clone voice
+            voice = cloner.clone(message_path)
 
-        text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
-        # generate responses while no new message has been received and users are connected
-        while not receive_message.poll():
-            print(f"Voicing response: '{text}' (seed: {seed}).")
+            # get seed
+            if receive_seed.poll():
+                seed = receive_seed.recv()
+                text_generator.set_generator_seed(seed)
 
-            speech_data = tts.generate(
-                voice,
-                text,
-                text_temp=bark_text_temp,
-                waveform_temp=bark_wave_temp,
-            )
+            text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
+            # generate responses while no new message has been received and users are connected
+            while not receive_message.poll():
+                print(f"Voicing response: '{text}' (seed: {seed}).")
 
-            # exit early if new message has been received
-            if receive_message.poll():
-                break
+                speech_data = tts.generate(
+                    voice,
+                    text,
+                    text_temp=bark_text_temp,
+                    waveform_temp=bark_wave_temp,
+                )
 
-            send_response.send(speech_data)
+                # exit early if new message has been received
+                if receive_message.poll():
+                    break
 
-            text, responses = next_response(
-                gpt_temp, gpt_top_k, gpt_top_p, message, responses
-            )
+                send_response.send(speech_data)
+
+                text, responses = next_response(
+                    gpt_temp, gpt_top_k, gpt_top_p, message, responses
+                )
+    except KeyboardInterrupt:
+        pass
 
 
 # fmt: off

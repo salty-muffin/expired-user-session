@@ -25,6 +25,10 @@ def set_generator_seed(seed: int) -> None:
 
 
 def generate(prompt: str, **kwargs) -> str:
+    assert (
+        generator is not None
+    ), "Transformer model must be loaded before generating text."
+
     return generator(prompt, pad_token_id=generator.tokenizer.eos_token_id, **kwargs)[
         0
     ]["generated_text"].strip()

@@ -7,9 +7,10 @@ from dotenv import load_dotenv
 import nltk
 import random
 
-from modules.stt import load_whisper, transcribe_audio
-from modules.tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
-from modules.text_generator import load_generator, set_generator_seed, generate
+import stt
+import tts
+from tts import convert_audio_to_mp3
+import text_generator
 
 from prompts import question_prompt, continuation_prompt
 
@@ -73,12 +74,12 @@ def contact(_: str, data: bytes) -> None:
 
     # transcribe the audio
     with cuda_lock:
-        message = transcribe_audio(sound_path)
+        message = stt.transcribe_audio(sound_path)
     print(f"Received message: '{message}'.")
 
     # clone voice
     with cuda_lock:
-        voice = clone_voice(sound_path)
+        voice = tts.clone_voice(sound_path)
 
     # wait for previous generation to finish
     if speech_thread:
@@ -100,7 +101,7 @@ def stream_responses(voice: str, message: str) -> None:
         # generate speech
         with cuda_lock:
             try:
-                speech_data = speak(
+                speech_data = tts.generate(
                     voice,
                     text,
                     text_temp=click_kwargs["bark_text_temp"],
@@ -140,7 +141,7 @@ def generate_next_response(message: str | None = None) -> str:
 
     with cuda_lock:
         response_lines = (
-            generate(
+            text_generator.generate(
                 prompt,
                 temperature=click_kwargs["gpt_temp"],
                 top_k=click_kwargs["gpt_top_k"],
@@ -165,7 +166,7 @@ def generate_next_response(message: str | None = None) -> str:
 @sio.event
 def seed(_: str, data: dict[str, int]) -> None:
     print(f"Received seed: {data['seed']}.")
-    set_generator_seed(data["seed"])
+    text_generator.set_generator_seed(data["seed"])
 
 
 def run_socketio() -> None:
@@ -190,10 +191,10 @@ def respond(**kwargs) -> None:
 
     click_kwargs = kwargs
 
-    load_whisper("base.en")
-    load_hubert()
-    load_bark()
-    load_generator(kwargs["model"])
+    stt.load_whisper("base.en")
+    tts.load_hubert()
+    tts.load_bark()
+    text_generator.load_generator(kwargs["model"])
 
     nltk.download("punkt_tab")
 

@@ -1,6 +1,6 @@
 import subprocess as sp
 
-from modules.tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
+from tts import load_hubert, load_bark, clone_voice, speak, convert_audio_to_mp3
 
 
 def test(text: str, text_temp: float, waveform_temp: float) -> None:

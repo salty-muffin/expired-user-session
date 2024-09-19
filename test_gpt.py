@@ -2,7 +2,7 @@ import nltk
 import time
 import random
 
-from modules.text_generator import load_generator, set_generator_seed, generate
+from text_generator import load_generator, set_generator_seed, generate
 
 from prompts import question_prompt, continuation_prompt
 

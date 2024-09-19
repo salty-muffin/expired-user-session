@@ -23,8 +23,7 @@ def load_whisper(model_name="base", device: str | None = None) -> None:
 def transcribe_audio(path: str) -> str:
     """Transcribes the audio with whisper."""
 
-    if model is None:
-        raise RuntimeError("Whisper model must be loaded before transcription")
+    assert model is not None, "Whisper model must be loaded before transcription."
 
     result = model.transcribe(path)
 

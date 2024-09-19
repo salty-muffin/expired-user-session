@@ -24,7 +24,6 @@ app = socketio.WSGIApp(
     static_files={
         "/": "./client/dist/index.html",
         "/favicon.png": "./client/dist/favicon.png",
-        "/favicon.svg": "./client/dist/favicon.svg",
         "/assets": "./client/dist/assets",
     },
 )

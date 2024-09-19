@@ -162,6 +162,7 @@ cython_debug/
 #.idea/
 
 models/
+nltk_data/
 output/
 speaker_embeddings/
 input/

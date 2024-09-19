@@ -4,31 +4,24 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import torch
-from transformers import pipeline, set_seed, Pipeline
-
-generator: Pipeline | None = None
+from transformers import pipeline, set_seed
 
 
-def load_generator(model="gpt2-medium", device: str | None = None) -> None:
-    global generator
+class TextGenerator:
+    def __init__(self, model="gpt2-medium", device: str | None = None) -> None:
+        if device is None:
+            device = 0 if torch.cuda.is_available() else -1
 
-    if device is None:
-        device = 0 if torch.cuda.is_available() else -1
+        print(
+            f"Using {f'cuda:{device}' if device > -1 else 'cpu'} for text generation."
+        )
 
-    print(f"Using {f'cuda:{device}' if device > -1 else 'cpu'} for text generation.")
+        self._generator = pipeline("text-generation", model=model, device=device)
 
-    generator = pipeline("text-generation", model=model, device=device)
+    def set_generator_seed(self, seed: int) -> None:
+        set_seed(seed)
 
-
-def set_generator_seed(seed: int) -> None:
-    set_seed(seed)
-
-
-def generate(prompt: str, **kwargs) -> str:
-    assert (
-        generator is not None
-    ), "Transformer model must be loaded before generating text."
-
-    return generator(prompt, pad_token_id=generator.tokenizer.eos_token_id, **kwargs)[
-        0
-    ]["generated_text"].strip()
+    def generate(self, prompt: str, **kwargs) -> str:
+        return self._generator(
+            prompt, pad_token_id=self._generator.tokenizer.eos_token_id, **kwargs
+        )[0]["generated_text"].strip()

@@ -6,25 +6,17 @@ warnings.filterwarnings("ignore")
 import torch
 import whisper
 
-model: whisper.Whisper | None = None
 
+class Whisper:
+    def __init__(self, model_name="base", device: str | None = None) -> None:
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def load_whisper(model_name="base", device: str | None = None) -> None:
-    global model
+        print(f"Using {device} for whisper speech to text.")
 
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self._model = whisper.load_model(model_name, device=device)
 
-    print(f"Using {device} for whisper speech to text.")
+    def transcribe_audio(self, path: str) -> str:
+        """Transcribes the audio with whisper."""
 
-    model = whisper.load_model(model_name, device=device)
-
-
-def transcribe_audio(path: str) -> str:
-    """Transcribes the audio with whisper."""
-
-    assert model is not None, "Whisper model must be loaded before transcription."
-
-    result = model.transcribe(path)
-
-    return result["text"].strip()
+        return self._model.transcribe(path)["text"].strip()

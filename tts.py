@@ -9,15 +9,7 @@ import numpy as np
 import torch
 import torchaudio
 
-from bark.api import generate_audio
-from bark.generation import (
-    SAMPLE_RATE,
-    preload_models,
-    # codec_decode,
-    # generate_coarse,
-    # generate_fine,
-    # generate_text_semantic,
-)
+from transformers import BarkProcessor, BarkModel
 
 from encodec import EncodecModel
 from encodec.utils import convert_audio
@@ -25,149 +17,106 @@ from bark_hubert_quantizer.hubert_manager import HuBERTManager
 from bark_hubert_quantizer.pre_kmeans_hubert import CustomHubert
 from bark_hubert_quantizer.customtokenizer import CustomTokenizer
 
-from pydub import AudioSegment
-from scipy.io import wavfile
 
-hubert_device: str | None = None
-bark_device: str | None = None
+class VoiceCloner:
+    def __init__(self, large_quant_model=False, device: str | None = None) -> None:
+        model = (
+            ("quantifier_V1_hubert_base_ls960_23.pth", "tokenizer_large.pth")
+            if large_quant_model
+            else ("quantifier_hubert_base_ls960_14.pth", "tokenizer.pth")
+        )
 
-hubert_model: CustomHubert | None = None
-tokenizer: CustomTokenizer | None = None
-encodec_model: EncodecModel | None = None
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self._device = device
 
+        print(f"Using {device} for hubert voice cloning.")
 
-def load_hubert(large_quant_model=False, device: str | None = None) -> None:
-    global hubert_model, tokenizer, encodec_model, hubert_device
+        self._hubert_model = CustomHubert(
+            HuBERTManager.make_sure_hubert_installed(), device=self._device
+        )
+        self._tokenizer = CustomTokenizer.load_from_checkpoint(
+            HuBERTManager.make_sure_tokenizer_installed(
+                model=model[0], local_file=model[1]
+            ),
+            self._device,
+        )
+        self._encodec_model = EncodecModel.encodec_model_24khz()
+        self._encodec_model.set_target_bandwidth(6.0)
+        self._encodec_model.to(self._device)
 
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    hubert_device = device
+    def clone(
+        self,
+        audio_file: str | io.BytesIO,
+        voice_outpath=os.path.join("temp", "echo.npz"),
+    ) -> str:
+        # load and pre-process the audio waveform
+        wav, sr = torchaudio.load(audio_file)
 
-    print(f"Using {device} for hubert voice cloning.")
+        wav = convert_audio(
+            wav, sr, self._encodec_model.sample_rate, self._encodec_model.channels
+        )
+        wav = wav.to(self._device)
 
-    model = (
-        ("quantifier_V1_hubert_base_ls960_23.pth", "tokenizer_large.pth")
-        if large_quant_model
-        else ("quantifier_hubert_base_ls960_14.pth", "tokenizer.pth")
-    )
+        semantic_vectors = self._hubert_model.forward(
+            wav, input_sample_hz=self._encodec_model.sample_rate
+        )
+        semantic_tokens = self._tokenizer.get_token(semantic_vectors)
 
-    hubert_model = CustomHubert(
-        HuBERTManager.make_sure_hubert_installed(), device=device
-    )
+        # extract discrete codes from EnCodec
+        with torch.no_grad():
+            encoded_frames = self._encodec_model.encode(wav.unsqueeze(0))
+        codes = torch.cat(
+            [encoded[0] for encoded in encoded_frames], dim=-1
+        ).squeeze()  # [n_q, T]
 
-    tokenizer = CustomTokenizer.load_from_checkpoint(
-        HuBERTManager.make_sure_tokenizer_installed(
-            model=model[0], local_file=model[1]
-        ),
-        device,
-    )
+        # move codes to cpu
+        codes = codes.cpu().numpy()
+        # move semantic tokens to cpu
+        semantic_tokens = semantic_tokens.cpu().numpy()
 
-    encodec_model = EncodecModel.encodec_model_24khz()
-    encodec_model.set_target_bandwidth(6.0)
-    encodec_model.to(device)
+        np.savez(
+            voice_outpath,
+            fine_prompt=codes,
+            coarse_prompt=codes[:2, :],
+            semantic_prompt=semantic_tokens,
+        )
 
-
-def load_bark(model_path="models", device: str | None = None) -> None:
-    global bark_device
-
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    bark_device = device
-
-    print(f"Using {device} for bark text to speech.")
-
-    semantic_path = os.path.join(
-        model_path, "semantic_output/pytorch_model.bin"
-    )  # set to None if you don't want to use finetuned semantic
-    coarse_path = os.path.join(
-        model_path, "coarse_output/pytorch_model.bin"
-    )  # set to None if you don't want to use finetuned coarse
-    fine_path = os.path.join(
-        model_path, "fine_output/pytorch_model.bin"
-    )  # set to None if you don't want to use finetuned fine
-
-    # download and load all models
-    use_gpu = "cuda" in device
-    preload_models(
-        text_use_gpu=use_gpu,
-        text_use_small=False,
-        text_model_path=semantic_path,
-        coarse_use_gpu=use_gpu,
-        coarse_use_small=False,
-        coarse_model_path=coarse_path,
-        fine_use_gpu=use_gpu,
-        fine_use_small=False,
-        fine_model_path=fine_path,
-        codec_use_gpu=use_gpu,
-        force_reload=False,
-        path=model_path,
-    )
+        return voice_outpath
 
 
-def clone_voice(
-    audio_file: str | io.BytesIO,
-    voice_outpath=os.path.join("temp", "echo.npz"),
-) -> str:
-    """Clone the audio from a sample. The sample should be max. 13 seconds long."""
+class Bark:
+    def __init__(self, device: str | None = None, use_float16=False) -> None:
+        if device is None:
+            device = 0 if torch.cuda.is_available() else -1
+        self._device = device
 
-    assert hubert_model is not None, "Hubert model needs to be loaded before cloning."
+        print(
+            f"Using {f'cuda:{device}' if device > -1 else 'cpu'} for bark text to speech."
+        )
 
-    # load and pre-process the audio waveform
-    wav, sr = torchaudio.load(audio_file)
+        self._processor = BarkProcessor.from_pretrained("suno/bark")
+        self._model = (
+            BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(
+                self._device
+            )
+            if use_float16 and self._device >= 0
+            else BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(
+                self._device
+            )
+        )
 
-    wav = convert_audio(wav, sr, encodec_model.sample_rate, encodec_model.channels)
-    wav = wav.to(hubert_device)
+        if self._device >= 0:
+            self._model = self._model.to_bettertransformer()
 
-    semantic_vectors = hubert_model.forward(
-        wav, input_sample_hz=encodec_model.sample_rate
-    )
-    semantic_tokens = tokenizer.get_token(semantic_vectors)
+    @property
+    def sample_rate(self) -> int:
+        return self._model.generation_config.sample_rate
 
-    # extract discrete codes from EnCodec
-    with torch.no_grad():
-        encoded_frames = encodec_model.encode(wav.unsqueeze(0))
-    codes = torch.cat(
-        [encoded[0] for encoded in encoded_frames], dim=-1
-    ).squeeze()  # [n_q, T]
+    def generate(
+        self, voice_path: str, text: str, text_temp=0.7, waveform_temp=0.7
+    ) -> np.ndarray:
+        inputs = self._processor(text, voice_preset=voice_path).to(self._device)
 
-    # move codes to cpu
-    codes = codes.cpu().numpy()
-    # move semantic tokens to cpu
-    semantic_tokens = semantic_tokens.cpu().numpy()
-
-    np.savez(
-        voice_outpath,
-        fine_prompt=codes,
-        coarse_prompt=codes[:2, :],
-        semantic_prompt=semantic_tokens,
-    )
-
-    return voice_outpath
-
-
-def generate(
-    voice_path: str, text: str, text_temp=0.7, waveform_temp=0.7, silent=True
-) -> np.ndarray:
-    assert (
-        bark_device is not None
-    ), "Bark model needs to be loaded before generating speech."
-
-    return generate_audio(
-        text,
-        history_prompt=voice_path,
-        text_temp=text_temp,
-        waveform_temp=waveform_temp,
-        silent=silent,
-    )
-
-
-def convert_audio_to_mp3(audio_data: np.ndarray, sr=SAMPLE_RATE) -> io.BytesIO:
-    """Convert the recorded audio data to a MP3 file and return a file object."""
-
-    wav_io = io.BytesIO()
-    mp3_io = io.BytesIO()
-    wavfile.write(wav_io, sr, audio_data)
-    wav_io.seek(0)
-    AudioSegment.from_wav(wav_io).export(mp3_io, format="mp3")
-
-    return mp3_io
+        audio_array = self._model.generate(**inputs)
+        return audio_array.cpu().numpy().squeeze()

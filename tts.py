@@ -27,10 +27,10 @@ class VoiceCloner:
         )
 
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self._device = device
 
-        print(f"Using {device} for hubert voice cloning.")
+        print(f"Using {self._device} for hubert voice cloning.")
 
         self._hubert_model = CustomHubert(
             HuBERTManager.make_sure_hubert_installed(), device=self._device
@@ -87,26 +87,27 @@ class VoiceCloner:
 
 class Bark:
     def __init__(self, device: str | None = None, use_float16=False) -> None:
+
         if device is None:
-            device = 0 if torch.cuda.is_available() else -1
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self._device = device
+        self._use_float16 = use_float16 and "cuda" in self._device
 
         print(
-            f"Using {f'cuda:{device}' if device > -1 else 'cpu'} for bark text to speech."
+            f"Using {self._device} with {'float16' if self._use_float16 else 'float32'} for bark text to speech."
         )
 
         self._processor = BarkProcessor.from_pretrained("suno/bark")
         self._model = (
-            BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(
-                self._device
-            )
-            if use_float16 and self._device >= 0
-            else BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(
-                self._device
-            )
+            BarkModel.from_pretrained(
+                "suno/bark",
+                torch_dtype=torch.float16,
+            ).to(self._device)
+            if self._use_float16
+            else BarkModel.from_pretrained("suno/bark").to(self._device)
         )
 
-        if self._device >= 0:
+        if "cuda" in self._device:
             self._model = self._model.to_bettertransformer()
 
     @property
@@ -118,5 +119,16 @@ class Bark:
     ) -> np.ndarray:
         inputs = self._processor(text, voice_preset=voice_path).to(self._device)
 
-        audio_array = self._model.generate(**inputs)
-        return audio_array.cpu().numpy().squeeze()
+        audio_array = self._model.generate(
+            **inputs,
+            semantic_temperature=text_temp,
+            coarse_temperature=waveform_temp,
+            fine_temperature=0.5,
+        )
+
+        audio_array = audio_array.cpu().numpy().squeeze()
+
+        if self._use_float16:
+            audio_array = audio_array.astype(np.float32)
+
+        return audio_array

@@ -123,6 +123,7 @@ def generate_responses(
     whisper_model: str,
     bark_text_temp: float,
     bark_wave_temp: float,
+    use_float16: bool,
     gpt_temp: float,
     gpt_top_k: int,
     gpt_top_p: float,
@@ -135,7 +136,7 @@ def generate_responses(
 
     stt = Whisper(whisper_model)
     cloner = VoiceCloner()
-    tts = Bark()
+    tts = Bark(use_float16=use_float16)
     text_generator = TextGenerator(gpt_model)
 
     def next_response(
@@ -226,6 +227,7 @@ def generate_responses(
 @click.option("--whisper_model", type=str, default="base",                 help="The whisper model for speech transcription.")
 @click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
 @click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
+@click.option("--use_float16", is_flag=True,                               help="Wheather to use float16 instead of float32 for bark text to speech.")
 @click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
 @click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")

@@ -3,13 +3,11 @@ channels:
   - pytorch
   - nvidia
 dependencies:
-  - python=3.10
-  - pip=21
-  - conda-forge::ffmpeg<7
+  - python=3.12
   - pytorch
   - torchvision
   - torchaudio
-  - pytorch-cuda=11.8
+  - pytorch-cuda=12.4
   - pip:
       - python-dotenv==1.0.1
       - click==8.1.7
@@ -18,9 +16,9 @@ dependencies:
       - huggingface-hub
       - transformers
       - encodec
+      - pydub==0.25.1
       # whisper
       - openai-whisper==20231117
-      - pydub==0.25.1
       # socketio
       - python-socketio==5.11.4
       - eventlet==0.36.1

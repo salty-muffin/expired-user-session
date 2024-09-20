@@ -21,7 +21,7 @@ class TextGenerator:
             device=device,
         )
 
-    def set_generator_seed(self, seed: int) -> None:
+    def set_seed(self, seed: int) -> None:
         set_seed(seed)
 
     def generate(self, prompt: str, **kwargs) -> str:

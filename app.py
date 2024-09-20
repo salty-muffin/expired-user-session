@@ -203,7 +203,7 @@ def generate_responses(
             # get seed
             if receive_seed.poll():
                 seed = receive_seed.recv()
-                text_generator.set_generator_seed(seed)
+                text_generator.set_seed(seed)
 
             text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
             # generate responses while no new message has been received and users are connected
@@ -233,8 +233,8 @@ def generate_responses(
 # fmt: off
 @click.command()
 @click.option("--gpt_model", type=str, required=True,                      help="The transformer model for speech generation.")
-@click.option("--whisper_model", type=str, default="base",                 help="The whisper model for speech transcription.")
-@click.option("--bark_model", type=str, default="suno/bark",               help="The bark model for text to speech.")
+@click.option("--whisper_model", type=str, required=True,                  help="The whisper model for speech transcription.")
+@click.option("--bark_model", type=str, required=True,                     help="The bark model for text to speech.")
 @click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
 @click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
 @click.option("--use_float16", is_flag=True,                               help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation).")

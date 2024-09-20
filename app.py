@@ -120,6 +120,7 @@ def generate_responses(
     receive_seed: Connection,
     users_connected: Event,
     models_ready: Event,
+    exiting: Event,
     gpt_model: str,
     whisper_model: str,
     bark_model: str,
@@ -254,6 +255,7 @@ def respond(**kwarks) -> None:
             receive_seed,
             users_connected,
             models_ready,
+            exiting,
         ),
         kwargs=kwarks,
     )

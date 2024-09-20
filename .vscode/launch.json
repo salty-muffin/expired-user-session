@@ -25,7 +25,7 @@
                 "--gpt_temp=1.1",
                 "--gpt_top_k=50",
                 "--gpt_top_p=1.0",
-                "--wtpsplit_model=sat-3l-sm"
+                "--wtpsplit_model=segment-any-text/sat-3l-sm"
             ],
             "console": "integratedTerminal"
         },

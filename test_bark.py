@@ -1,7 +1,8 @@
-import subprocess as sp
-
+import os
 from tts import Bark
 from audio import convert_audio_to_mp3
+
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 
 
 def test(

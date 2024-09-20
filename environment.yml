@@ -12,17 +12,15 @@ dependencies:
   - pip:
       - python-dotenv==1.0.1
       - click==8.1.7
-      # bark & text generation
       - audiolm-pytorch==1.1.4
+      - sentencepiece==0.2.0
       - fairseq==0.12.2
       - huggingface-hub==0.25.0
-      - transformers==4.44
+      - transformers==4.43.4
       - encodec==0.1.1
-      - nltk==3.9.1
+      - wtpsplit==2.0.8
       - scipy==1.14.1
       - optimum==1.22.0
-      # whisper
-      - openai-whisper==20231117
       - pydub==0.25.1
       # socketio
       - python-socketio==5.11.4

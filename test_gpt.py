@@ -1,3 +1,4 @@
+import os
 import nltk
 import time
 import random
@@ -5,6 +6,8 @@ import random
 from text_generator import TextGenerator
 
 from prompts import question_prompt, continuation_prompt
+
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 
 
 def next_response(

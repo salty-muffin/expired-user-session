@@ -7,7 +7,6 @@ import click
 import eventlet
 import socketio
 from dotenv import load_dotenv
-import nltk
 import random
 import multiprocessing as mp
 from threading import Thread
@@ -18,8 +17,6 @@ from prompts import question_prompt, continuation_prompt
 
 # load and set environment variables
 load_dotenv()
-nltk_path = os.path.join(os.getcwd(), "models", "nltk_data")
-os.environ["NLTK_DATA"] = nltk_path
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 
 # socketio
@@ -133,12 +130,14 @@ def generate_responses(
     gpt_temp: float,
     gpt_top_k: int,
     gpt_top_p: float,
+    wtpsplit_model: str,
 ) -> None:
     """Generates the responses to be sent to the user. To be called in a seperate process."""
 
     from stt import Whisper
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator
+    from sentence_splitter import SentenceSplitter
 
     def next_response(
         gpt_temp: float,
@@ -172,7 +171,7 @@ def generate_responses(
         response = response_lines[0]
         responses.append(response)
 
-        sentences = nltk.sent_tokenize(response)
+        sentences = sentence_splitter.split(response)
         sentence = sentences[random.randint(0, len(sentences) - 1)]
         return sentence, responses
 
@@ -181,6 +180,7 @@ def generate_responses(
         cloner = VoiceCloner()
         tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
         text_generator = TextGenerator(gpt_model)
+        sentence_splitter = SentenceSplitter(wtpsplit_model, "cpu")
 
         models_ready.set()
 
@@ -242,11 +242,9 @@ def generate_responses(
 @click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
 @click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
+@click.option("--wtpsplit_model", type=str, required=True,                 help="The wtpsplit model for sentence splitting.")
 # fmt: on
 def respond(**kwarks) -> None:
-    # download tokenization data for sentance splitting
-    nltk.download("punkt_tab", download_dir=nltk_path)
-
     # start response process
     response_process = mp.Process(
         target=generate_responses,

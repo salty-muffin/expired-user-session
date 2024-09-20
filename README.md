@@ -13,8 +13,9 @@ an ai version of the classic spirit box
 
 - [x] restructure (there should be a better structure than "modules/\*").
 - [x] try implementation with [huggingface transformers](https://huggingface.co/docs/transformers/main/en/model_doc/bark) for [additional speedups](https://huggingface.co/blog/optimizing-bark).
-- [ ] split off ai generation into seperate process, with the server running in the main process. models will be loaded in the ai process. communication will happen through pipes and queues.
+- [x] split off ai generation into seperate process, with the server running in the main process. models will be loaded in the ai process. communication will happen through pipes and queues.
 - [ ] try to split up model steps (semantic, course and fine) in huggingface for possibility of exiting the loop sooner. if not possible, revert to original bark?
 - [ ] backup models, etc. (especially if using original bark).
 - [ ] make dead-profiles page prettier.
-- [ ] pick right whisper model
+- [x] pick right whisper model
+- [ ] work over prompts and text generation method

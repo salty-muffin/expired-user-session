@@ -1,9 +1,10 @@
 # ai-spirit-box
 
-an ai version of the classic spirit box
+an ai version of the classic spirit box. can be used for post-internet transcommunication (i.e. communication with the spirits of dead users).
 
 ## requirements
 
+- `ffmpeg` with `ffplay` needs to be installed.
 - needs a conda environment (can be installed from environment.yml file).
 - needs node to building the frontend (20.x.x+) ideally installed with `nvm`.
 - for proper operation it needs a cuda comapitble gpu with necessary drivers installed.

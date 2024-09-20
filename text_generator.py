@@ -3,6 +3,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import os
 import torch
 from transformers import pipeline, set_seed
 
@@ -14,7 +15,11 @@ class TextGenerator:
 
         print(f"Using {device} for text generation.")
 
-        self._generator = pipeline("text-generation", model=model_name, device=device)
+        self._generator = pipeline(
+            "text-generation",
+            model=model_name,
+            device=device,
+        )
 
     def set_generator_seed(self, seed: int) -> None:
         set_seed(seed)

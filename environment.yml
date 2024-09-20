@@ -3,22 +3,27 @@ channels:
   - pytorch
   - nvidia
 dependencies:
-  - python=3.12
-  - pytorch
-  - torchvision
-  - torchaudio
+  - python=3.10
+  - pip=21
+  - pytorch=2.4
+  - torchvision=0.19
+  - torchaudio=2.4
   - pytorch-cuda=12.4
   - pip:
       - python-dotenv==1.0.1
       - click==8.1.7
-      - nltk==3.9.1
       # bark & text generation
-      - huggingface-hub
-      - transformers
-      - encodec
-      - pydub==0.25.1
+      - audiolm-pytorch==1.1.4
+      - fairseq==0.12.2
+      - huggingface-hub==0.25.0
+      - transformers==4.44
+      - encodec==0.1.1
+      - nltk==3.9.1
+      - scipy==1.14.1
+      - optimum==1.22.0
       # whisper
       - openai-whisper==20231117
+      - pydub==0.25.1
       # socketio
       - python-socketio==5.11.4
       - eventlet==0.36.1

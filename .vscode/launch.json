@@ -18,7 +18,7 @@
             "program": "app.py",
             "args": [
                 "--gpt_model=facebook/opt-1.3b",
-                "--whisper_model=base.en",
+                "--whisper_model=openai/whisper-base.en",
                 "--bark_text_temp=1.0",
                 "--bark_wave_temp=0.6",
                 "--gpt_temp=1.1",

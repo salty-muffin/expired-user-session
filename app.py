@@ -16,8 +16,13 @@ from audio import convert_audio_to_mp3
 
 from prompts import question_prompt, continuation_prompt
 
+# load and set environment variables
 load_dotenv()
+nltk_path = os.path.join(os.getcwd(), "models", "nltk_data")
+os.environ["NLTK_DATA"] = nltk_path
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 
+# socketio
 sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(
     sio,
@@ -28,6 +33,9 @@ app = socketio.WSGIApp(
     },
 )
 
+# socketio variables
+users = set()
+
 # multiprocessing communication objects
 receive_message, send_message = mp.Pipe()
 receive_response, send_response = mp.Pipe()
@@ -35,9 +43,6 @@ receive_seed, send_seed = mp.Pipe()
 users_connected = mp.Event()
 exiting = mp.Event()
 models_ready = mp.Event()
-
-# socketio variables
-users = set()
 
 # variables
 background_thread: Thread | None = None
@@ -240,9 +245,7 @@ def generate_responses(
 # fmt: on
 def respond(**kwarks) -> None:
     # download tokenization data for sentance splitting
-    nltk_path = os.path.join(os.getcwd(), "nltk_data")
     nltk.download("punkt_tab", download_dir=nltk_path)
-    os.environ["NLTK_DATA"] = nltk_path
 
     # start response process
     response_process = mp.Process(

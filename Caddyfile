@@ -1,0 +1,3 @@
+session.example.com
+
+reverse_proxy server:5000

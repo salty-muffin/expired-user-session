@@ -18,15 +18,16 @@ from prompts import question_prompt, continuation_prompt
 # load and set environment variables
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
+os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), "models")
 
 # socketio
 sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(
     sio,
     static_files={
-        "/": "./client/dist/index.html",
-        "/favicon.png": "./client/dist/favicon.png",
-        "/assets": "./client/dist/assets",
+        "/": "../client/dist/index.html",
+        "/favicon.png": "../client/dist/favicon.png",
+        "/assets": "../client/dist/assets",
     },
 )
 
@@ -65,7 +66,8 @@ def connect(sid: str, _: dict[str, any], auth: dict[str, str]) -> None:
 def disconnect(sid: str) -> None:
     """Gets called when a client disconnect."""
 
-    users.remove(sid)
+    if sid in users:
+        users.remove(sid)
     if not len(users):
         users_connected.clear()
 

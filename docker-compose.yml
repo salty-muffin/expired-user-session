@@ -1,0 +1,35 @@
+services:
+  server:
+    build: ./server
+    command: ["bash", "run.sh"]
+    restart: unless-stopped
+    volumes:
+      - ./server:/app/server
+      - dist:/app/client/dist
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  client:
+    build: ./client
+    volumes:
+      - dist:/app/client/dist
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  dist:
+  caddy_data:
+  caddy_config:

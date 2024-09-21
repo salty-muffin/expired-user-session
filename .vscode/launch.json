@@ -16,6 +16,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "app.py",
+            "cwd": "${workspaceFolder}/server",
             "args": [
                 "--gpt_model=facebook/opt-1.3b",
                 "--whisper_model=openai/whisper-base.en",

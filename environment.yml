@@ -1,10 +1,10 @@
-name: spirit-box
+name: spirit-box-test
 channels:
   - pytorch
   - nvidia
 dependencies:
   - python=3.10
-  - pip=21
+  - pip<24.1
   - pytorch=2.4
   - torchvision=0.19
   - torchaudio=2.4

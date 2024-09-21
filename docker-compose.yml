@@ -6,8 +6,6 @@ services:
     volumes:
       - ./server:/app/server
       - dist:/app/client/dist
-    ports:
-      - 5000:5000
     deploy:
       resources:
         reservations:
@@ -23,9 +21,9 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - 80:80
+      - 443:443
+      - 443:443/udp
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data

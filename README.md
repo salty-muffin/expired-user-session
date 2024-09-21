@@ -2,13 +2,22 @@
 
 an ai version of the classic spirit box. can be used for post-internet transcommunication (i.e. communication with the spirits of dead users).
 
-## requirements
+## setup
+
+.env file needs to be created inside the server directory. inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with.
+
+## development requirements
 
 - `ffmpeg` with `ffplay` needs to be installed.
 - needs a conda environment (can be installed from environment.yml file).
 - needs node to building the frontend (20.x.x+) ideally installed with `nvm`.
 - for proper operation it needs a cuda comapitble gpu with necessary drivers installed.
 - the backend should be operated behind a reverse proxy (e.g. `caddy`) or tunnel (e.g. `ngrok`).
+
+## production requirements (docker)
+
+- nvidia drivers need to be installed on the host machine.
+- for cuda support [nvidia-conatiner-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt) needs to be installed.
 
 ## to do
 

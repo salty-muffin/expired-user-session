@@ -1,0 +1,16 @@
+services:
+  server:
+    build: ./server
+    command: ["./run.sh"]
+    volumes:
+      - ./server:/app/server
+      - dist:/app/client/dist
+    ports:
+      - 5000:5000
+  client:
+    build: ./client
+    volumes:
+      - dist:/app/client/dist
+
+volumes:
+  dist:

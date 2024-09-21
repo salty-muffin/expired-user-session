@@ -24,9 +24,9 @@ sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(
     sio,
     static_files={
-        "/": "./client/dist/index.html",
-        "/favicon.png": "./client/dist/favicon.png",
-        "/assets": "./client/dist/assets",
+        "/": "../client/dist/index.html",
+        "/favicon.png": "../client/dist/favicon.png",
+        "/assets": "../client/dist/assets",
     },
 )
 

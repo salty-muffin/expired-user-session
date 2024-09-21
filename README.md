@@ -4,7 +4,7 @@ an ai version of the classic spirit box. can be used for post-internet transcomm
 
 ## setup
 
-.env file needs to be created inside the server directory. inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with.
+.env file needs to be created inside the server directory. inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with. the caddyfile must be adjusted to the proper domain name. currently docker compose needs to be run as root with `sudo docker compose up`.
 
 ## development requirements
 

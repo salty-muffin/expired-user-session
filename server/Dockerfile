@@ -3,7 +3,7 @@ FROM python:3.10-slim-bookworm
 WORKDIR /app/server
 
 # install ffmpeg
-RUN apt install ffmpeg
+RUN apt-get -y update && apt-get install -y ffmpeg build-essential g++
 
 # downgrade pip
 RUN pip install pip==24.0

@@ -10,6 +10,12 @@ import torch
 import torchaudio
 
 from transformers import BarkProcessor, BarkModel
+from transformers.models.bark.generation_configuration_bark import (
+    BarkCoarseGenerationConfig,
+    BarkFineGenerationConfig,
+    BarkSemanticGenerationConfig,
+)
+
 from optimum.bettertransformer import BetterTransformer
 
 from encodec import EncodecModel
@@ -104,8 +110,8 @@ class Bark:
             f"Using {self._device} with {'float16' if self._use_float16 else 'float32'} for bark text to speech."
         )
 
-        self._processor = BarkProcessor.from_pretrained(model_name)
-        self._model = (
+        self._processor: BarkProcessor = BarkProcessor.from_pretrained(model_name)
+        self._model: BarkModel = (
             BarkModel.from_pretrained(
                 model_name,
                 torch_dtype=torch.float16,
@@ -115,7 +121,7 @@ class Bark:
         )
 
         if "cuda" in self._device:
-            self._model = BetterTransformer.transform(self._model)
+            # self._model = BetterTransformer.transform(self._model)
             if cpu_offload:
                 self._model.enable_cpu_offload()
 
@@ -134,6 +140,106 @@ class Bark:
             coarse_temperature=waveform_temp,
             fine_temperature=0.5,
         )
+
+        audio_array = audio_array.cpu().numpy().squeeze()
+
+        if self._use_float16:
+            audio_array = audio_array.astype(np.float32)
+
+        return audio_array
+
+    def preprocess(self, voice_path: str, text: str):
+        """Generate configs."""
+        semantic_generation_config = BarkSemanticGenerationConfig(
+            **self._model.generation_config.semantic_config
+        )
+        coarse_generation_config = BarkCoarseGenerationConfig(
+            **self._model.generation_config.coarse_acoustics_config
+        )
+        fine_generation_config = BarkFineGenerationConfig(
+            **self._model.generation_config.fine_acoustics_config
+        )
+
+        inputs = self._processor(text, voice_preset=voice_path).to(self._device)
+
+        return (
+            semantic_generation_config,
+            coarse_generation_config,
+            fine_generation_config,
+            inputs,
+        )
+
+    def generate_semantic(self, inputs, semantic_generation_config, temperature=0.7):
+        """1. Generate from the semantic model."""
+
+        semantic_output = self._model.semantic.generate(
+            inputs["input_ids"],
+            history_prompt=inputs["history_prompt"],
+            semantic_generation_config=semantic_generation_config,
+            temperature=temperature,
+        )
+
+        return semantic_output
+
+    def generate_course(
+        self,
+        inputs,
+        semantic_output,
+        semantic_generation_config,
+        coarse_generation_config,
+        temperature=0.7,
+    ):
+        """2. Generate from the coarse model."""
+
+        coarse_output = self._model.coarse_acoustics.generate(
+            semantic_output,
+            history_prompt=inputs["history_prompt"],
+            semantic_generation_config=semantic_generation_config,
+            coarse_generation_config=coarse_generation_config,
+            codebook_size=self._model.generation_config.codebook_size,
+            temperature=temperature,
+        )
+
+        return coarse_output
+
+    def generate_fine(
+        self,
+        inputs,
+        coarse_output,
+        semantic_generation_config,
+        coarse_generation_config,
+        fine_generation_config,
+        temperature=0.5,
+    ):
+        """3. "generate" from the fine model."""
+
+        fine_output = self._model.fine_acoustics.generate(
+            coarse_output,
+            history_prompt=inputs["history_prompt"],
+            semantic_generation_config=semantic_generation_config,
+            coarse_generation_config=coarse_generation_config,
+            fine_generation_config=fine_generation_config,
+            codebook_size=self._model.generation_config.codebook_size,
+            temperature=temperature,
+        )
+
+        if getattr(self._model, "fine_acoustics_hook", None) is not None:
+            # Manually offload fine_acoustics to CPU
+            # and load codec_model to GPU
+            # since bark doesn't use codec_model forward pass
+            self._model.fine_acoustics_hook.offload()
+            self._model.codec_model = self.codec_model.to(self.device)
+
+        return fine_output
+
+    def decode(self, fine_output):
+        """4. Decode the output and generate audio array."""
+
+        audio_array = self._model.codec_decode(fine_output)
+
+        if getattr(self._model, "codec_model_hook", None) is not None:
+            # offload codec_model to CPU
+            self._model.codec_model_hook.offload()
 
         audio_array = audio_array.cpu().numpy().squeeze()
 

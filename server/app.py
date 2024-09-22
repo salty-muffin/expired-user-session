@@ -42,6 +42,9 @@ users_connected = mp.Event()
 exiting = mp.Event()
 models_ready = mp.Event()
 
+# constants
+SAMPLE_RATE = 24_000
+
 # variables
 background_thread: Thread | None = None
 first_response = True
@@ -102,7 +105,7 @@ def send_responses() -> None:
 
     while not exiting.is_set():
         response = receive_response.recv()
-        mp3 = convert_audio_to_mp3(response, 24000)
+        mp3 = convert_audio_to_mp3(response, SAMPLE_RATE)
         sio.emit("first_response" if first_response else "response", mp3.read())
         first_response = False
         sio.sleep(1)
@@ -211,7 +214,8 @@ def generate_responses(
             text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
             # generate responses while no new message has been received and users are connected
             while not receive_message.poll():
-                print(f"Voicing response: '{text}' (seed: {seed}).")
+                print(f"Voicing response: '{text}' (seed: {seed})...")
+                # print(f"Voicing response: '{text}' (seed: {seed})...", end=" ")
 
                 speech_data = tts.generate(
                     voice,
@@ -219,6 +223,56 @@ def generate_responses(
                     text_temp=bark_text_temp,
                     waveform_temp=bark_wave_temp,
                 )
+
+                # (
+                #     semantic_generation_config,
+                #     coarse_generation_config,
+                #     fine_generation_config,
+                #     inputs,
+                # ) = tts.preprocess(voice, text)
+                # print(f"Preprocessed.", end=" ")
+
+                # # exit early if new message has been received
+                # if receive_message.poll():
+                #     break
+
+                # semantic_output = tts.generate_semantic(
+                #     inputs, semantic_generation_config, temperature=bark_text_temp
+                # )
+                # print(f"Semantic.", end=" ")
+
+                # # exit early if new message has been received
+                # if receive_message.poll():
+                #     break
+
+                # coarse_output = tts.generate_course(
+                #     inputs,
+                #     semantic_output,
+                #     semantic_generation_config,
+                #     coarse_generation_config,
+                #     temperature=bark_wave_temp,
+                # )
+                # print(f"Course.", end=" ")
+
+                # # exit early if new message has been received
+                # if receive_message.poll():
+                #     break
+
+                # fine_output = tts.generate_fine(
+                #     inputs,
+                #     coarse_output,
+                #     semantic_generation_config,
+                #     coarse_generation_config,
+                #     fine_generation_config,
+                # )
+                # print(f"Fine.", end=" ")
+
+                # # exit early if new message has been received
+                # if receive_message.poll():
+                #     break
+
+                # speech_data = tts.decode(fine_output)
+                # print(f"Decoded.")
 
                 # exit early if new message has been received
                 if receive_message.poll():

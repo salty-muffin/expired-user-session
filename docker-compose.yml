@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./server:/app/server
-      - dist:/app/client/dist
+      - ./client/dist:/app/client/dist
     deploy:
       resources:
         reservations:
@@ -14,9 +14,11 @@ services:
               count: 1
               capabilities: [gpu]
   client:
-    build: ./client
+    image: node:20-alpine
+    working_dir: /app/client
+    command: ["sh", "-c", "npm install && npm run build"]
     volumes:
-      - dist:/app/client/dist
+      - ./client:/app/client
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -30,6 +32,5 @@ services:
       - caddy_config:/config
 
 volumes:
-  dist:
   caddy_data:
   caddy_config:

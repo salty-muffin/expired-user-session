@@ -1,24 +1,27 @@
 let lines: String[] = [];
 let cursor: HTMLDivElement | null = null;
 
-export const log = (element: HTMLElement | null = null, ...args: any) => {
+export const log = (element: HTMLElement | null = null, ...args: any[]) => {
 	if (args.length && typeof args[0] == 'string' && args[0].length) console.log(...args);
-	lines.push(args.map((arg: any) => String(arg)).join(' '));
+	const newLines = args
+		.map((arg: any) => String(arg))
+		.join(' ')
+		.split('\n');
+	lines = [...lines, ...newLines];
 	if (element) element.innerHTML = lines.join('<br />');
 	if (cursor) removeCursor();
 	// scroll to bottom
 	window.scrollTo(0, document.body.scrollHeight);
 };
 
-export const logCursor = (element: HTMLElement | null = null, ...args: any) => {
-	console.log(...args);
-	lines.push(args.map((arg: any) => String(arg)).join(' '));
+export const logCursor = (element: HTMLElement | null = null, ...args: any[]) => {
+	log(element, ...args);
 	if (element) {
-		element.innerHTML = lines.join('<br />');
 		document.fonts.ready.then(() => {
 			addCursor(element);
 		});
 	}
+
 	// scroll to bottom
 	window.scrollTo(0, document.body.scrollHeight);
 };
@@ -39,7 +42,7 @@ const addCursor = (element: HTMLElement) => {
 	cursor.style.height = `${dimensions.height}px`;
 	cursor.style.top = `${(lines.length - 1) * dimensions.height}px`;
 	cursor.style.left = `${lines[lines.length - 1].length * dimensions.width}px`;
-	console.log(dimensions, lines[lines.length - 1].length, lines.length - 1);
+	// console.log(dimensions, lines[lines.length - 1].length, lines.length - 1);
 	element.parentElement?.appendChild(cursor);
 };
 

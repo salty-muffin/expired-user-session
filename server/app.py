@@ -328,8 +328,10 @@ def respond(**kwarks) -> None:
     finally:
         exiting.set()
 
-        response_process.join()
-        background_thread.join()
+        if response_process:
+            response_process.join()
+        if background_thread:
+            background_thread.join()
 
 
 if __name__ == "__main__":

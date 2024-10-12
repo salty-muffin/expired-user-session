@@ -1,4 +1,4 @@
-import '@fontsource/ubuntu-mono';
+import '@fontsource/ubuntu-mono/latin-400.css';
 import './style.css';
 
 import { log, logCursor } from './logging';
@@ -31,11 +31,20 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 	try {
 		stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
 	} catch (error) {
-		log(terminal, `The following getUserMedia error occurred: '${error}'.`);
-		log(
-			terminal,
-			'Please make sure that a camera and microphone are connected and reload the page.'
-		);
+		try {
+			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			log(terminal, `The following getUserMedia error occurred: '${error}'.`);
+			log(
+				terminal,
+				'Only the audio can be used. A random seed will be sent. Please make sure that a camera is connected.'
+			);
+		} catch {
+			log(terminal, `The following getUserMedia error occurred: '${error}'.`);
+			log(
+				terminal,
+				'Please make sure that a camera and microphone are connected and reload the page.'
+			);
+		}
 	}
 else log(terminal, 'getUserMedia not supported on your browser!');
 
@@ -156,11 +165,11 @@ const main = async (pass: string) => {
 				audioChunks.push(event.data);
 			};
 
-			mediaRecorder.onstop = () => {
+			mediaRecorder.onstop = async () => {
 				log(terminal, 'Recording stopped.');
 				const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
 				audioChunks = [];
-				sendAudioToServer(audioBlob);
+				await sendAudioToServer(audioBlob);
 				isFirstResponse = true;
 			};
 
@@ -177,14 +186,8 @@ const main = async (pass: string) => {
 	};
 
 	// send the recorded audio to the server
-	const sendAudioToServer = (audioBlob: Blob) => {
-		// const mp3Blob = convertToMP3(audioBlob);
-		const reader = new FileReader();
-		reader.readAsArrayBuffer(audioBlob);
-		reader.onloadend = () => {
-			const audioBuffer = reader.result;
-			socket.emit('contact', audioBuffer);
-		};
+	const sendAudioToServer = async (audioBlob: Blob) => {
+		socket.emit('contact', await audioBlob.arrayBuffer());
 	};
 
 	// handle audio response from server and play it back
@@ -195,7 +198,7 @@ const main = async (pass: string) => {
 
 	// video capture and seed calculation
 	const getSeedFromCamera = async () => {
-		if (stream) {
+		if (stream && stream.getVideoTracks().length) {
 			const video = document.createElement('video');
 			video.srcObject = stream;
 			video.play();
@@ -227,6 +230,12 @@ const main = async (pass: string) => {
 				video.srcObject = null;
 				video.remove();
 			});
-		} else log(terminal, 'No MediaStream found for capturing.');
+		} else {
+			log(terminal, 'No MediaStream found for video capturing.');
+
+			const seed = Math.floor(Math.random() * (50000 + 1)); // just a high maximum number
+			log(terminal, `Random seed: ${seed}.`);
+			socket.emit('seed', { seed: seed });
+		}
 	};
 };

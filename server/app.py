@@ -136,9 +136,14 @@ def generate_responses(
     gpt_temp: float,
     gpt_top_k: int,
     gpt_top_p: float,
+    gpt_device_map: str | None,
+    gpt_bfloat16: bool,
+    gpt_do_sample: bool,
     wtpsplit_model: str,
 ) -> None:
     """Generates the responses to be sent to the user. To be called in a seperate process."""
+
+    from huggingface_hub import login
 
     from stt import Whisper
     from tts import VoiceCloner, Bark
@@ -166,7 +171,7 @@ def generate_responses(
                 top_k=gpt_top_k,
                 top_p=gpt_top_p,
                 max_new_tokens=128,
-                do_sample=True,
+                do_sample=gpt_do_sample,
             )
             .replace(prompt, "")
             .split("\n")
@@ -182,10 +187,15 @@ def generate_responses(
         return sentence, responses
 
     try:
+        if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
+            login(huggingface_token)
+
         stt = Whisper(whisper_model)
         cloner = VoiceCloner()
         tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
-        text_generator = TextGenerator(gpt_model)
+        text_generator = TextGenerator(
+            gpt_model, bfloat16=gpt_bfloat16, device_map=gpt_device_map
+        )
         sentence_splitter = SentenceSplitter(wtpsplit_model, "cpu")
 
         models_ready.set()
@@ -299,6 +309,9 @@ def generate_responses(
 @click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
 @click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
+@click.option("--gpt_device_map", type=str,                                help="Device map for text generation.")
+@click.option("--gpt_bfloat16", is_flag=True, default=False,               help="Use bfloat16 for text generation.")
+@click.option("--gpt_do_sample", is_flag=True, default=False,              help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling.")
 @click.option("--wtpsplit_model", type=str, required=True,                 help="The wtpsplit model for sentence splitting.")
 # fmt: on
 def respond(**kwarks) -> None:

@@ -1,4 +1,4 @@
-name: spirit-box-test
+name: spirit-box
 channels:
   - pytorch
   - nvidia

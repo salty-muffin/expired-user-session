@@ -77,6 +77,6 @@ def test(
 
 if __name__ == "__main__":
     try:
-        test(20, "Is there hell?", "facebook/opt-1.3b", 1.1, 50, 1.0)
+        test(20, "Hello, this is a test.", "facebook/opt-1.3b", 1.1, 50, 1.0)
     except KeyboardInterrupt:
         pass

@@ -1,12 +1,16 @@
 import os
 import time
 import random
+from dotenv import load_dotenv
+
+from huggingface_hub import login
 
 from text_generator import TextGenerator
 from sentence_splitter import SentenceSplitter
 
 from prompts import question_prompt, continuation_prompt
 
+load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 
 
@@ -52,6 +56,9 @@ def next_response(
 def test(
     iterations: int, message: str, model: str, temp: float, top_k: int, top_p: float
 ) -> None:
+    if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
+        login(huggingface_token)
+
     text_generator = TextGenerator(model)
     sentence_splitter = SentenceSplitter("segment-any-text/sat-3l-sm", "cpu")
 
@@ -70,6 +77,6 @@ def test(
 
 if __name__ == "__main__":
     try:
-        test(20, "Hello, this is a test.", "facebook/opt-1.3b", 1.1, 50, 1.0)
+        test(20, "Is there hell?", "facebook/opt-1.3b", 1.1, 50, 1.0)
     except KeyboardInterrupt:
         pass

@@ -140,6 +140,8 @@ def generate_responses(
 ) -> None:
     """Generates the responses to be sent to the user. To be called in a seperate process."""
 
+    from huggingface_hub import login
+
     from stt import Whisper
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator
@@ -182,6 +184,9 @@ def generate_responses(
         return sentence, responses
 
     try:
+        if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
+            login(huggingface_token)
+
         stt = Whisper(whisper_model)
         cloner = VoiceCloner()
         tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)

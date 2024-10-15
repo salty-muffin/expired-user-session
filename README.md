@@ -25,8 +25,10 @@ an ai version of the classic spirit box. can be used for post-internet transcomm
 - [x] try implementation with [huggingface transformers](https://huggingface.co/docs/transformers/main/en/model_doc/bark) for [additional speedups](https://huggingface.co/blog/optimizing-bark).
 - [x] split off ai generation into seperate process, with the server running in the main process. models will be loaded in the ai process. communication will happen through pipes and queues.
 - [x] try to split up model steps (semantic, course and fine) in huggingface for possibility of exiting the loop sooner. if not possible, revert to original bark?
-  - currently fails die to vram limits (why?).
-- [ ] backup models, etc. (especially if using original bark).
-- [ ] make dead-profiles page prettier.
+  - currently fails due to vram limits (why?).
 - [x] pick right whisper model
+- [ ] find right text generation model
+  - [ ] implement needed parameters for each model while retesting for the original one at each step
 - [ ] work over prompts and text generation method
+- [ ] make dead-profiles page prettier.
+- [ ] backup models, etc. (especially if using original bark).

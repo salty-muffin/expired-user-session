@@ -30,3 +30,4 @@ an ai version of the classic spirit box. can be used for post-internet transcomm
 - [ ] make dead-profiles page prettier.
 - [x] pick right whisper model
 - [ ] work over prompts and text generation method
+- [ ] delete ./cache/hugginface/hub

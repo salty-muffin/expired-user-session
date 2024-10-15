@@ -133,12 +133,12 @@ def generate_responses(
     bark_wave_temp: float,
     use_float16: bool,
     cpu_offload: bool,
-    gpt_temp: float,
-    gpt_top_k: int,
-    gpt_top_p: float,
+    gpt_temp: float | None,
+    gpt_top_k: int | None,
+    gpt_top_p: float | None,
     gpt_device_map: str | None,
     gpt_bfloat16: bool,
-    gpt_do_sample: bool,
+    gpt_do_sample: bool | None,
     wtpsplit_model: str,
 ) -> None:
     """Generates the responses to be sent to the user. To be called in a seperate process."""
@@ -151,9 +151,9 @@ def generate_responses(
     from sentence_splitter import SentenceSplitter
 
     def next_response(
-        gpt_temp: float,
-        gpt_top_k: int,
-        gpt_top_p: float,
+        gpt_temp: float | None,
+        gpt_top_k: int | None,
+        gpt_top_p: float | None,
         message: str | None = None,
         responses=[],
     ) -> str:
@@ -187,7 +187,7 @@ def generate_responses(
         return sentence, responses
 
     try:
-        if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
+        if huggingface_token := os.environ.get("HF_TOKEN"):
             login(huggingface_token)
 
         stt = Whisper(whisper_model)
@@ -306,9 +306,9 @@ def generate_responses(
 @click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
 @click.option("--use_float16", is_flag=True,                               help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation).")
 @click.option("--cpu_offload", is_flag=True,                               help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time).")
-@click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
-@click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
-@click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
+@click.option("--gpt_temp", type=click.FloatRange(0.0),                    help="The value used to modulate the next token probabilities.")
+@click.option("--gpt_top_k", type=click.IntRange(0),                       help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0),                   help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
 @click.option("--gpt_device_map", type=str,                                help="Device map for text generation.")
 @click.option("--gpt_bfloat16", is_flag=True, default=False,               help="Use bfloat16 for text generation.")
 @click.option("--gpt_do_sample", is_flag=True, default=False,              help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling.")

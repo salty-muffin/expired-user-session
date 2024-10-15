@@ -18,12 +18,14 @@ class TextGenerator:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        print(f"Using {device} for text generation.")
+        print(
+            f"Using {device} {'with bfloat16' if bfloat16 else ''} for text generation."
+        )
 
         self._generator = pipeline(
             "text-generation",
             model=model_name,
-            device=device,
+            device=device if device_map != "auto" else None,
             torch_dtype=torch.bfloat16 if bfloat16 else None,
             device_map=device_map,
         )

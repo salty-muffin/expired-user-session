@@ -17,11 +17,9 @@ os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 def next_response(
     generator: TextGenerator,
     sentence_splitter: SentenceSplitter,
-    gpt_temp: float,
-    gpt_top_k: int,
-    gpt_top_p: float,
     message: str | None = None,
     responses=[],
+    **kwargs,
 ) -> str:
     if message:
         responses = []
@@ -30,15 +28,11 @@ def next_response(
     else:
         prompt = continuation_prompt.format(" ".join(responses))
 
+    generator_kwargs = {
+        key: value for key, value in kwargs.items() if value is not None
+    }
     response_lines = (
-        generator.generate(
-            prompt,
-            temperature=gpt_temp,
-            top_k=gpt_top_k,
-            top_p=gpt_top_p,
-            max_new_tokens=128,
-            do_sample=True,
-        )
+        generator.generate(prompt, max_new_tokens=128, **generator_kwargs)
         .replace(prompt, "")
         .split("\n")
     )
@@ -53,9 +47,7 @@ def next_response(
     return sentence, responses
 
 
-def test(
-    iterations: int, message: str, model: str, temp: float, top_k: int, top_p: float
-) -> None:
+def test(iterations: int, message: str, model: str, **kwargs) -> None:
     if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
         login(huggingface_token)
 
@@ -65,18 +57,30 @@ def test(
     text_generator.set_seed(int(time.time()))
 
     response, responses = next_response(
-        text_generator, sentence_splitter, temp, top_k, top_p, message
+        text_generator, sentence_splitter, message, **kwargs
     )
     print(f"0: {response}")
     for i in range(1, iterations):
         response, responses = next_response(
-            text_generator, sentence_splitter, temp, top_k, top_p, message, responses
+            text_generator,
+            sentence_splitter,
+            message,
+            responses,
+            **kwargs,
         )
         print(f"{i}: {response}")
 
 
 if __name__ == "__main__":
     try:
-        test(20, "Hello, this is a test.", "facebook/opt-1.3b", 1.1, 50, 1.0)
+        test(
+            iterations=20,
+            message="Hello, this is a test.",
+            model="facebook/opt-1.3b",
+            temperature=1.1,
+            top_k=50,
+            top_p=1.0,
+            do_sample=True,
+        )
     except KeyboardInterrupt:
         pass

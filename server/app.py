@@ -13,8 +13,6 @@ from threading import Thread
 
 from audio import convert_audio_to_mp3
 
-from prompts import question_prompt, continuation_prompt
-
 # load and set environment variables
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
@@ -130,12 +128,17 @@ def generate_responses(
 ) -> None:
     """Generates the responses to be sent to the user. To be called in a seperate process."""
 
+    import yaml
     from huggingface_hub import login
 
     from stt import Whisper
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator
     from sentence_splitter import SentenceSplitter
+
+    # get prompts
+    with open(kwargs.pop("prompts")) as file:
+        prompts = yaml.safe_load(file)
 
     def filter_kwargs_by_prefix(prefix, kwargs, remove_none=False):
         """
@@ -171,9 +174,9 @@ def generate_responses(
         if message:
             responses = []
 
-            prompt = question_prompt.format(message)
+            prompt = prompts["question_prompt"].format(message)
         else:
-            prompt = continuation_prompt.format(" ".join(responses))
+            prompt = prompts["continuation_prompt"].format(" ".join(responses))
 
         response_lines = (
             text_generator.generate(prompt, max_new_tokens=128, **kwargs)
@@ -263,6 +266,8 @@ def generate_responses(
 @click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
 
 @click.option("--wtpsplit_model", type=str, required=True,                        help="The wtpsplit model for sentence splitting")
+
+@click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def respond(**kwarks) -> None:
     # start response process

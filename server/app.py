@@ -204,7 +204,11 @@ def generate_responses(
             use_float16=bark_kwargs.pop("use_float16"),
             cpu_offload=bark_kwargs.pop("cpu_offload"),
         )
-        text_generator = TextGenerator(gpt_kwargs.pop("model"))
+        text_generator = TextGenerator(
+            gpt_kwargs.pop("model"),
+            device_map=gpt_kwargs.pop("device_map", None),
+            use_bfloat16=gpt_kwargs.pop("use_bfloat16"),
+        )
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
 
         models_ready.set()
@@ -256,7 +260,9 @@ def generate_responses(
 @click.option("--gpt_temperature", type=click.FloatRange(0.0),                    help="The value used to modulate the next token probabilities")
 @click.option("--gpt_top_k", type=click.IntRange(0),                              help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0),                          help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
-@click.option("--gpt_do_sample", is_flag=True, default=None,                      help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling.")
+@click.option("--gpt_do_sample", is_flag=True, default=None,                      help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
+@click.option("--gpt_use_bfloat16", is_flag=True, default=False,                  help="Load the model as bfloat16 instead of float32")
+@click.option("--gpt_device_map", type=click.Choice(["auto"]),                    help="When set to 'auto', automatically fills all available space on the GPU(s) first, then the CPU, and finally, the hard drive")
 
 @click.option("--bark_model", type=str, required=True,                            help="The bark model for text to speech")
 @click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),          help="Temperature for the bark generation (semantic/text)")

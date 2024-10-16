@@ -1,3 +1,5 @@
+from typing import Literal
+
 import os
 import time
 import random
@@ -47,7 +49,14 @@ def next_response(
     return sentence, responses
 
 
-def test(iterations: int, message: str, model: str, **kwargs) -> None:
+def test(
+    iterations: int,
+    message: str,
+    model: str,
+    device_map: Literal["auto"] | None = None,
+    use_bfloat16: bool = False,
+    **kwargs,
+) -> None:
     if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
         login(huggingface_token)
 
@@ -55,7 +64,9 @@ def test(iterations: int, message: str, model: str, **kwargs) -> None:
     with open("server/prompts.yml") as file:
         prompts = yaml.safe_load(file)
 
-    text_generator = TextGenerator(model)
+    text_generator = TextGenerator(
+        model, device_map=device_map, use_bfloat16=use_bfloat16
+    )
     sentence_splitter = SentenceSplitter("segment-any-text/sat-3l-sm", "cpu")
 
     text_generator.set_seed(int(time.time()))
@@ -80,12 +91,13 @@ if __name__ == "__main__":
     try:
         test(
             iterations=20,
-            message="Hello, this is a test.",
-            model="facebook/opt-1.3b",
+            message="Hallo das ist ein Test.",
+            model="meta-llama/Llama-3.2-1B",
             temperature=1.1,
             top_k=50,
             top_p=1.0,
             do_sample=True,
+            use_bfloat16=True,
         )
     except KeyboardInterrupt:
         pass

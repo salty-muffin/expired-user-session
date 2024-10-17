@@ -32,5 +32,22 @@
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "run test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "server/test_gpt.py",
+            "args": [
+                "--runs=4",
+                "--iterations=10",
+                "--prompt=Hello, is anybody out there?",
+                "--model=facebook/opt-1.3b",
+                "--temperature=1.1",
+                "--top_k=50",
+                "--top_p=1.0",
+                "--do_sample"
+            ],
+            "console": "integratedTerminal"
+        }
     ]
 }

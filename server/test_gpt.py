@@ -1,6 +1,7 @@
 from typing import Literal
 
 import os
+import click
 import time
 import random
 from dotenv import load_dotenv
@@ -55,6 +56,7 @@ def test(
     model: str,
     device_map: Literal["auto"] | None = None,
     use_bfloat16: bool = False,
+    print_file=None,
     **kwargs,
 ) -> None:
     if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
@@ -74,7 +76,7 @@ def test(
     response, responses = next_response(
         text_generator, sentence_splitter, prompts, message, **kwargs
     )
-    print(f"0: {response}")
+    print(f"0: {response}", file=print_file)
     for i in range(1, iterations):
         response, responses = next_response(
             text_generator,
@@ -84,20 +86,67 @@ def test(
             responses,
             **kwargs,
         )
-        print(f"{i}: {response}")
+        print(f"{i}: {response}", file=print_file)
+
+
+# fmt: off
+@click.command
+@click.option("--runs", type=int, required=True)
+@click.option("--iterations", type=int, required=True)
+@click.option("--prompt", type=str, required=True)
+@click.option("--model", type=str, required=True)
+@click.option("--temperature", type=float, default=1.0)
+@click.option("--top_k", type=int, default=50)
+@click.option("--top_p", type=float, default=1.0)
+@click.option("--do_sample", is_flag=True, default=False)
+@click.option("--use_bfloat16", is_flag=True, default=False)
+# fmt: on
+def run_test(
+    runs: int,
+    iterations: int,
+    prompt: str,
+    model: str,
+    temperature: float,
+    top_k: int,
+    top_p: float,
+    do_sample: bool,
+    use_bfloat16: bool,
+):
+    try:
+        with open(
+            os.path.join(
+                "server",
+                "tests",
+                f"{model.split('/')[-1]}_temp{temperature}{f'_top_k{top_k}_top_p{top_p}' if do_sample else ''}{'_bfloat16' if use_bfloat16 else ''}.text",
+            ),
+            "w+",
+        ) as file:
+            print(f"executing {runs} runs.", file=file)
+            print(f"model: \t\t\t{model}", file=file)
+            print(f"prompt: \t\t{prompt}", file=file)
+            print(f"temperature: \t{temperature}", file=file)
+            print(f"top_k: \t\t\t{top_k}", file=file)
+            print(f"top_p: \t\t\t{top_p}", file=file)
+            print(f"sample: \t\t{do_sample}", file=file)
+            print(f"bfloat16: \t\t{use_bfloat16}", file=file)
+            print("", file=file)
+
+            for _ in range(0, runs):
+                test(
+                    iterations=iterations,
+                    message=prompt,
+                    model=model,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    do_sample=do_sample,
+                    use_bfloat16=use_bfloat16,
+                    print_file=file,
+                )
+                print("", file=file)
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":
-    try:
-        test(
-            iterations=20,
-            message="Hallo das ist ein Test.",
-            model="meta-llama/Llama-3.2-1B",
-            temperature=1.1,
-            top_k=50,
-            top_p=1.0,
-            do_sample=True,
-            use_bfloat16=True,
-        )
-    except KeyboardInterrupt:
-        pass
+    run_test()

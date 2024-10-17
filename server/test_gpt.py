@@ -76,7 +76,7 @@ def test(
     response, responses = next_response(
         text_generator, sentence_splitter, prompts, message, **kwargs
     )
-    print(f"0: {response}", file=print_file)
+    print(f"0: {response}", file=print_file, flush=True)
     for i in range(1, iterations):
         response, responses = next_response(
             text_generator,
@@ -86,7 +86,7 @@ def test(
             responses,
             **kwargs,
         )
-        print(f"{i}: {response}", file=print_file)
+        print(f"{i}: {response}", file=print_file, flush=True)
 
 
 # fmt: off
@@ -117,18 +117,18 @@ def run_test(
             os.path.join(
                 "server",
                 "tests",
-                f"{model.split('/')[-1]}_temp{temperature}{f'_top_k{top_k}_top_p{top_p}' if do_sample else ''}{'_bfloat16' if use_bfloat16 else ''}.text",
+                f"{model.split('/')[-1]}_temp{temperature}{f'_top_k{top_k}_top_p{top_p}' if do_sample else ''}{'_bfloat16' if use_bfloat16 else ''}.txt",
             ),
             "w+",
         ) as file:
-            print(f"executing {runs} runs.", file=file)
-            print(f"model: \t\t\t{model}", file=file)
-            print(f"prompt: \t\t{prompt}", file=file)
-            print(f"temperature: \t{temperature}", file=file)
-            print(f"top_k: \t\t\t{top_k}", file=file)
-            print(f"top_p: \t\t\t{top_p}", file=file)
-            print(f"sample: \t\t{do_sample}", file=file)
-            print(f"bfloat16: \t\t{use_bfloat16}", file=file)
+            print(f"executing {runs} runs.", file=file, flush=True)
+            print(f"model: \t\t\t{model}", file=file, flush=True)
+            print(f"prompt: \t\t{prompt}", file=file, flush=True)
+            print(f"temperature: \t{temperature}", file=file, flush=True)
+            print(f"top_k: \t\t\t{top_k}", file=file, flush=True)
+            print(f"top_p: \t\t\t{top_p}", file=file, flush=True)
+            print(f"sample: \t\t{do_sample}", file=file, flush=True)
+            print(f"bfloat16: \t\t{use_bfloat16}", file=file, flush=True)
             print("", file=file)
 
             for _ in range(0, runs):
@@ -143,7 +143,7 @@ def run_test(
                     use_bfloat16=use_bfloat16,
                     print_file=file,
                 )
-                print("", file=file)
+                print("", file=file, flush=True)
     except KeyboardInterrupt:
         pass
 

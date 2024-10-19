@@ -129,16 +129,12 @@ class Bark:
     def sample_rate(self) -> int:
         return self._model.generation_config.sample_rate
 
-    def generate(
-        self, voice_path: str, text: str, text_temp=0.7, waveform_temp=0.7
-    ) -> np.ndarray:
+    def generate(self, voice_path: str, text: str, **kwargs) -> np.ndarray:
         inputs = self._processor(text, voice_preset=voice_path).to(self._device)
 
         audio_array = self._model.generate(
             **inputs,
-            semantic_temperature=text_temp,
-            coarse_temperature=waveform_temp,
-            fine_temperature=0.5,
+            **kwargs,
         )
 
         audio_array = audio_array.cpu().numpy().squeeze()

@@ -18,17 +18,36 @@
             "program": "app.py",
             "cwd": "${workspaceFolder}/server",
             "args": [
-                "--gpt_model=facebook/opt-1.3b",
                 "--whisper_model=openai/whisper-base.en",
+                "--gpt_model=facebook/opt-1.3b",
+                "--gpt_temperature=1.1",  // default: 1.0
+                "--gpt_top_k=50",  // default: 50
+                "--gpt_top_p=1.0",  // default: 1.0
+                "--gpt_do_sample",
                 "--bark_model=suno/bark",
-                "--bark_text_temp=1.0",
-                "--bark_wave_temp=0.6",
-                "--gpt_temp=1.1",
-                "--gpt_top_k=50",
-                "--gpt_top_p=1.0",
-                "--wtpsplit_model=segment-any-text/sat-3l-sm"
+                "--bark_semantic_temperature=1.0",  // default: 0.7
+                "--bark_coarse_temperature=0.6",  // default: 0.7
+                "--wtpsplit_model=segment-any-text/sat-3l-sm",
+                "prompts.yml"
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "run test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "server/test_gpt.py",
+            "args": [
+                "--runs=4",
+                "--iterations=10",
+                "--prompt=Hello, is anybody out there?",
+                "--model=facebook/opt-1.3b",
+                "--temperature=1.1",
+                "--top_k=50",
+                "--top_p=1.0",
+                "--do_sample"
+            ],
+            "console": "integratedTerminal"
+        }
     ]
 }

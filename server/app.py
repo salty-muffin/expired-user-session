@@ -13,8 +13,6 @@ from threading import Thread
 
 from audio import convert_audio_to_mp3
 
-from prompts import question_prompt, continuation_prompt
-
 # load and set environment variables
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
@@ -126,48 +124,62 @@ def generate_responses(
     users_connected: Event,
     models_ready: Event,
     exiting: Event,
-    gpt_model: str,
-    whisper_model: str,
-    bark_model: str,
-    bark_text_temp: float,
-    bark_wave_temp: float,
-    use_float16: bool,
-    cpu_offload: bool,
-    gpt_temp: float,
-    gpt_top_k: int,
-    gpt_top_p: float,
-    wtpsplit_model: str,
+    **kwargs,
 ) -> None:
     """Generates the responses to be sent to the user. To be called in a seperate process."""
+
+    import yaml
+    from huggingface_hub import login
 
     from stt import Whisper
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator
     from sentence_splitter import SentenceSplitter
 
-    def next_response(
-        gpt_temp: float,
-        gpt_top_k: int,
-        gpt_top_p: float,
-        message: str | None = None,
-        responses=[],
-    ) -> str:
+    # get prompts
+    with open(kwargs.pop("prompts")) as file:
+        prompts = yaml.safe_load(file)
+
+    def filter_kwargs_by_prefix(prefix, kwargs, remove_none=False):
+        """
+        Filters keys from the kwargs that match the given prefix and removes the prefix from the keys.
+
+        :param prefix: The prefix to match and remove.
+        :param kwargs: The dictionary to filter.
+        :param remove_none: If True, filter out keys with None values.
+        :return: A new dictionary with filtered and renamed keys.
+        """
+        filtered_kwargs = {
+            key[len(prefix) :]: value
+            for key, value in kwargs.items()
+            if key.startswith(prefix)
+        }
+
+        if remove_none:
+            filtered_kwargs = {
+                key: value
+                for key, value in filtered_kwargs.items()
+                if value is not None
+            }
+
+        return filtered_kwargs
+
+    # get kwargs for each model
+    whisper_kwargs = filter_kwargs_by_prefix("whisper_", kwargs, remove_none=True)
+    gpt_kwargs = filter_kwargs_by_prefix("gpt_", kwargs, remove_none=True)
+    bark_kwargs = filter_kwargs_by_prefix("bark_", kwargs, remove_none=True)
+    wtpsplit_kwargs = filter_kwargs_by_prefix("wtpsplit_", kwargs, remove_none=True)
+
+    def next_response(message: str | None = None, responses=[], **kwargs) -> str:
         if message:
             responses = []
 
-            prompt = question_prompt.format(message)
+            prompt = prompts["question_prompt"].format(message)
         else:
-            prompt = continuation_prompt.format(" ".join(responses))
+            prompt = prompts["continuation_prompt"].format(" ".join(responses))
 
         response_lines = (
-            text_generator.generate(
-                prompt,
-                temperature=gpt_temp,
-                top_k=gpt_top_k,
-                top_p=gpt_top_p,
-                max_new_tokens=128,
-                do_sample=True,
-            )
+            text_generator.generate(prompt, max_new_tokens=128, **kwargs)
             .replace(prompt, "")
             .split("\n")
         )
@@ -182,11 +194,22 @@ def generate_responses(
         return sentence, responses
 
     try:
-        stt = Whisper(whisper_model)
+        if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
+            login(huggingface_token)
+
+        stt = Whisper(whisper_kwargs.pop("model"))
         cloner = VoiceCloner()
-        tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
-        text_generator = TextGenerator(gpt_model)
-        sentence_splitter = SentenceSplitter(wtpsplit_model, "cpu")
+        tts = Bark(
+            bark_kwargs.pop("model"),
+            use_float16=bark_kwargs.pop("use_float16"),
+            cpu_offload=bark_kwargs.pop("cpu_offload"),
+        )
+        text_generator = TextGenerator(
+            gpt_kwargs.pop("model"),
+            device_map=gpt_kwargs.pop("device_map", None),
+            use_bfloat16=gpt_kwargs.pop("use_bfloat16"),
+        )
+        sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
 
         models_ready.set()
 
@@ -211,68 +234,12 @@ def generate_responses(
                 seed = receive_seed.recv()
                 text_generator.set_seed(seed)
 
-            text, responses = next_response(gpt_temp, gpt_top_k, gpt_top_p, message)
+            text, responses = next_response(message, **gpt_kwargs)
             # generate responses while no new message has been received and users are connected
             while not receive_message.poll():
                 print(f"Voicing response: '{text}' (seed: {seed})...")
-                # print(f"Voicing response: '{text}' (seed: {seed})...", end=" ")
 
-                speech_data = tts.generate(
-                    voice,
-                    text,
-                    text_temp=bark_text_temp,
-                    waveform_temp=bark_wave_temp,
-                )
-
-                # (
-                #     semantic_generation_config,
-                #     coarse_generation_config,
-                #     fine_generation_config,
-                #     inputs,
-                # ) = tts.preprocess(voice, text)
-                # print(f"Preprocessed.", end=" ")
-
-                # # exit early if new message has been received
-                # if receive_message.poll():
-                #     break
-
-                # semantic_output = tts.generate_semantic(
-                #     inputs, semantic_generation_config, temperature=bark_text_temp
-                # )
-                # print(f"Semantic.", end=" ")
-
-                # # exit early if new message has been received
-                # if receive_message.poll():
-                #     break
-
-                # coarse_output = tts.generate_course(
-                #     inputs,
-                #     semantic_output,
-                #     semantic_generation_config,
-                #     coarse_generation_config,
-                #     temperature=bark_wave_temp,
-                # )
-                # print(f"Course.", end=" ")
-
-                # # exit early if new message has been received
-                # if receive_message.poll():
-                #     break
-
-                # fine_output = tts.generate_fine(
-                #     inputs,
-                #     coarse_output,
-                #     semantic_generation_config,
-                #     coarse_generation_config,
-                #     fine_generation_config,
-                # )
-                # print(f"Fine.", end=" ")
-
-                # # exit early if new message has been received
-                # if receive_message.poll():
-                #     break
-
-                # speech_data = tts.decode(fine_output)
-                # print(f"Decoded.")
+                speech_data = tts.generate(voice, text, **bark_kwargs)
 
                 # exit early if new message has been received
                 if receive_message.poll():
@@ -280,26 +247,33 @@ def generate_responses(
 
                 send_response.send(speech_data)
 
-                text, responses = next_response(
-                    gpt_temp, gpt_top_k, gpt_top_p, message, responses
-                )
+                text, responses = next_response(message, responses, **gpt_kwargs)
     except KeyboardInterrupt:
         pass
 
 
 # fmt: off
 @click.command()
-@click.option("--gpt_model", type=str, required=True,                      help="The transformer model for speech generation.")
-@click.option("--whisper_model", type=str, required=True,                  help="The whisper model for speech transcription.")
-@click.option("--bark_model", type=str, required=True,                     help="The bark model for text to speech.")
-@click.option("--bark_text_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (text).")
-@click.option("--bark_wave_temp", type=click.FloatRange(0.0), default=0.7, help="Temperature for the bark generation (waveform).")
-@click.option("--use_float16", is_flag=True,                               help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation).")
-@click.option("--cpu_offload", is_flag=True,                               help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time).")
-@click.option("--gpt_temp", type=click.FloatRange(0.0), default=1.0,       help="The value used to modulate the next token probabilities.")
-@click.option("--gpt_top_k", type=click.IntRange(0), default=50,           help="The number of highest probability vocabulary tokens to keep for top-k-filtering.")
-@click.option("--gpt_top_p", type=click.FloatRange(0.0), default=1.0,      help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation.")
-@click.option("--wtpsplit_model", type=str, required=True,                 help="The wtpsplit model for sentence splitting.")
+@click.option("--whisper_model", type=str, required=True,                         help="The whisper model for speech transcription")
+
+@click.option("--gpt_model", type=str, required=True,                             help="The transformer model for speech generation")
+@click.option("--gpt_temperature", type=click.FloatRange(0.0),                    help="The value used to modulate the next token probabilities")
+@click.option("--gpt_top_k", type=click.IntRange(0),                              help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0),                          help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
+@click.option("--gpt_do_sample", is_flag=True, default=None,                      help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
+@click.option("--gpt_use_bfloat16", is_flag=True, default=False,                  help="Load the model as bfloat16 instead of float32")
+@click.option("--gpt_device_map", type=click.Choice(["auto"]),                    help="When set to 'auto', automatically fills all available space on the GPU(s) first, then the CPU, and finally, the hard drive")
+
+@click.option("--bark_model", type=str, required=True,                            help="The bark model for text to speech")
+@click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),          help="Temperature for the bark generation (semantic/text)")
+@click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),            help="Temperature for the bark generation (course waveform)")
+@click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5, help="Temperature for the bark generation (fine waveform)")
+@click.option("--bark_use_float16", is_flag=True, default=False,                  help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation)")
+@click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
+
+@click.option("--wtpsplit_model", type=str, required=True,                        help="The wtpsplit model for sentence splitting")
+
+@click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def respond(**kwarks) -> None:
     # start response process

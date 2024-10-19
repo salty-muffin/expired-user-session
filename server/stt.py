@@ -3,7 +3,6 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-import os
 import torch
 from transformers import pipeline
 

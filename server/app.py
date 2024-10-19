@@ -197,7 +197,7 @@ def generate_responses(
         if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
             login(huggingface_token)
 
-        stt = Whisper(whisper_kwargs.pop("model"))
+        stt = Whisper(whisper_kwargs.pop("model"), use_float16=True)
         cloner = VoiceCloner()
         tts = Bark(
             bark_kwargs.pop("model"),
@@ -223,7 +223,7 @@ def generate_responses(
             message_path = receive_message.recv()
 
             # transcribe message
-            message = stt.transcribe_audio(message_path)
+            message, _ = stt.transcribe_audio(message_path)
             print(f"Received message: '{message}'.")
 
             # clone voice

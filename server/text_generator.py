@@ -3,18 +3,13 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import os
 import torch
 from transformers import pipeline, set_seed
 
 
 class TextGenerator:
-    def __init__(
-        self,
-        model_name,
-        device: str | None = None,
-        bfloat16: bool = False,
-        device_map: str | None = None,
-    ) -> None:
+    def __init__(self, model_name, device: str | None = None) -> None:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -24,8 +19,6 @@ class TextGenerator:
             "text-generation",
             model=model_name,
             device=device,
-            torch_dtype=torch.bfloat16 if bfloat16 else None,
-            device_map=device_map,
         )
 
     def set_seed(self, seed: int) -> None:

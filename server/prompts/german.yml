@@ -1,0 +1,9 @@
+question_prompt: |-
+  Dies ist eine Reihe von Fragen und Antworten. Die Antworten enthalten nichtsprachliche Symbole wie [Lachen], [lacht], [seufzt], [Musik], [keucht], [räuspert sich] oder ... für Zögern. Die Antworten sind mehrere Sätze lang.
+
+  F: {}
+  A:
+continuation_prompt: |-
+  Der folgende Text ist ein Monolog. Er enthält nichtsprachliche Symbole wie [Lachen], [Lachen], [Seufzen], [Musik], [Keuchen], [Räuspern] oder ... für Zögern.
+
+  {}

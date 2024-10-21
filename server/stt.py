@@ -4,8 +4,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import torch
-from transformers.pipelines.audio_utils import ffmpeg_read
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+from transformers import pipeline
 
 
 class Whisper:

@@ -36,7 +36,8 @@ an ai version of the classic spirit box. can be used for post-internet transcomm
 - [x] split off ai generation into seperate process, with the server running in the main process. models will be loaded in the ai process. communication will happen through pipes and queues.
 - [x] try to split up model steps (semantic, course and fine) in huggingface for possibility of exiting the loop sooner. if not possible, revert to original bark?
   - currently fails due to vram limits (why?).
-- [x] pick right whisper model
+- [ ] pick right whisper model
+- [ ] implement multilanguage
 - [ ] find right text generation model
   - [ ] implement needed parameters for each model while retesting for the original one at each step
 - [ ] work over prompts and text generation method

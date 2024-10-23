@@ -16,13 +16,14 @@ def test(
     tts = Bark(bark_model, use_float16=use_float16, cpu_offload=cpu_offload)
 
     speech_data = tts.generate(
-        "temp/echo.npz",
+        "server/temp/echo.npz",
         text,
-        text_temp=text_temp,
-        waveform_temp=waveform_temp,
+        semantic_temperature=text_temp,
+        coarse_temperature=waveform_temp,
+        fine_temperature=0.5,
     )
-    mp3 = convert_audio_to_mp3(speech_data)
-    with open("temp/test.mp3", "wb") as f:
+    mp3 = convert_audio_to_mp3(speech_data, 24_000)
+    with open("server/temp/test.mp3", "wb") as f:
         f.write(mp3.getbuffer())
 
 

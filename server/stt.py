@@ -9,7 +9,7 @@ from transformers import pipeline
 
 class Whisper:
     def __init__(
-        self, model_name, multilang=False, use_float16=False, device: str | None = None
+        self, model_name: str, multilang=False, use_float16=False, device: str | None = None
     ) -> None:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"

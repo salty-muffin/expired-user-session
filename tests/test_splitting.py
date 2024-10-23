@@ -1,6 +1,6 @@
 import os
 
-from sentence_splitter import SentenceSplitter
+from server.sentence_splitter import SentenceSplitter
 import time
 
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")

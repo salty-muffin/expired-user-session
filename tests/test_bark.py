@@ -1,6 +1,6 @@
 import os
-from tts import Bark
-from audio import convert_audio_to_mp3
+from server.tts import Bark
+from server.audio import convert_audio_to_mp3
 
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 

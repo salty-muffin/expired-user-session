@@ -9,8 +9,8 @@ import yaml
 
 from huggingface_hub import login
 
-from text_generator import TextGenerator
-from sentence_splitter import SentenceSplitter
+from server.text_generator import TextGenerator
+from server.sentence_splitter import SentenceSplitter
 
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")

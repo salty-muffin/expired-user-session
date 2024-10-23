@@ -1,5 +1,5 @@
 import os
-from translator import T5, OpusMul, Opus
+from server.translator import T5, OpusMul, Opus
 
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 

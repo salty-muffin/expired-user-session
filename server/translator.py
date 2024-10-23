@@ -21,11 +21,14 @@ class T5:
     ) -> None:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        self._device = device
 
         print(f"Using {device} for T5 text translation.")
 
         self._tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
-        self._model = T5ForConditionalGeneration.from_pretrained(model_name)
+        self._model = T5ForConditionalGeneration.from_pretrained(model_name).to(
+            self._device
+        )
 
         self._task_prefix = task_prefix
 
@@ -36,15 +39,15 @@ class T5:
         Returns the translated text.
         """
 
-        input_ids = self._tokenizer(
+        inputs = self._tokenizer(
             self._task_prefix.format_map(
                 {"source_lang": source_lang.title(), "target_lang": target_lang.title()}
             )
             + text,
             return_tensors="pt",
-        ).input_ids
+        ).to(self._device)
 
-        outputs = self._model.generate(input_ids)
+        outputs = self._model.generate(inputs.input_ids)
 
         return self._tokenizer.decode(outputs[0], skip_special_tokens=True)
 
@@ -64,10 +67,7 @@ class OpusMul:
             f"Using {device} for Opus text translation using the multilang to unknown method."
         )
 
-        self._translator = pipeline(
-            "translation",
-            model=model_name,
-        )
+        self._translator = pipeline("translation", model=model_name, device=device)
 
         self._mappings = mappings
         self._prefix = prefix
@@ -100,9 +100,7 @@ class Opus:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        print(
-            f"Using {device} for Opus text translation using the multilang to unknown method."
-        )
+        print(f"Using {device} for Opus text translation using single models.")
 
         # generate all all possible language pairs
         language_pairs = list(
@@ -117,7 +115,7 @@ class Opus:
         self._pipes = {}
         for pair in self._language_pairs:
             self._pipes["{}-{}".format(*pair)] = pipeline(
-                "translation", model=model_names_base.format(*pair)
+                "translation", model=model_names_base.format(*pair), device=device
             )
 
         self._mappings = mappings

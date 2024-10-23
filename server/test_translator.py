@@ -39,7 +39,7 @@ def test_sentence_OpusMul(text):
 
 
 def test_file_OpusMul(path):
-    translator = Opus("Helsinki-NLP/opus-mt-{}-{}", ["english", "german"])
+    translator = OpusMul("Helsinki-NLP/opus-mt-tc-bible-big-deu_eng_fra_por_spa-mul")
 
     with open(path) as file:
         lines = file.readlines()
@@ -59,7 +59,7 @@ def test_sentence_Opus(text):
 
 
 def test_file_Opus(path):
-    translator = Opus("Helsinki-NLP/opus-mt-tc-bible-big-deu_eng_fra_por_spa-mul")
+    translator = Opus("Helsinki-NLP/opus-mt-{}-{}", ["english", "german"])
 
     with open(path) as file:
         lines = file.readlines()

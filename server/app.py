@@ -140,11 +140,13 @@ def generate_responses(
     # get languages & prompts
     languages = kwargs.pop("languages")
     default_lang = kwargs.pop("default_language")
-    prompts = {}
-    prompts_dir = kwargs.pop("prompts_dir")
+    with open(kwargs.pop("prompts")) as file:
+        prompts: dict = yaml.safe_load(file)
+
+    # check if prompts for all languages exist
     for lang in languages:
-        with open(os.path.join(prompts_dir, f"{lang}.yml")) as file:
-            prompts[lang] = yaml.safe_load(file)
+        if lang not in prompts.keys():
+            raise RuntimeError(f"No prompts for language '{lang}' was provided")
 
     def filter_kwargs_by_prefix(prefix, kwargs, remove_none=False):
         """
@@ -308,17 +310,9 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.option("--languages", type=parse_comma_list, default=["english"],          help="The languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
 @click.option("--default_language", type=str, default="english",                  help="The fallback language in case the detected language is not provided")
 # prompts
-@click.argument("prompts_dir", type=click.Path(exists=True, file_okay=False))
+@click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def respond(**kwarks) -> None:
-    # check if prompts for all languages exist
-    for lang in kwarks["languages"]:
-        fn = os.path.join(kwarks["prompts_dir"], f"{lang}.yml")
-        if not os.path.isfile(fn):
-            raise click.FileError(
-                fn, f"No prompts file for language '{lang}' was provided"
-            )
-
     # start response process
     response_process = mp.Process(
         target=generate_responses,

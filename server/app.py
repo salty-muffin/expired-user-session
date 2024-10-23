@@ -129,6 +129,7 @@ def generate_responses(
     """Generates the responses to be sent to the user. To be called in a seperate process."""
 
     import yaml
+    from collections import Counter
     from huggingface_hub import login
 
     from stt import Whisper
@@ -136,9 +137,16 @@ def generate_responses(
     from text_generator import TextGenerator
     from sentence_splitter import SentenceSplitter
 
-    # get prompts
+    # get languages & prompts
+    languages = kwargs.pop("languages")
+    default_lang = kwargs.pop("default_language")
     with open(kwargs.pop("prompts")) as file:
-        prompts = yaml.safe_load(file)
+        prompts: dict = yaml.safe_load(file)
+
+    # check if prompts for all languages exist
+    for lang in languages:
+        if lang not in prompts.keys():
+            raise RuntimeError(f"No prompts for language '{lang}' was provided")
 
     def filter_kwargs_by_prefix(prefix, kwargs, remove_none=False):
         """
@@ -170,13 +178,21 @@ def generate_responses(
     bark_kwargs = filter_kwargs_by_prefix("bark_", kwargs, remove_none=True)
     wtpsplit_kwargs = filter_kwargs_by_prefix("wtpsplit_", kwargs, remove_none=True)
 
-    def next_response(message: str | None = None, responses=[], **kwargs) -> str:
+    def next_response(
+        language: str, message: str | None = None, responses=[], **kwargs
+    ) -> str:
+        # use fallback, if language is not provided
+        if not language in languages:
+            language = default_lang
+
         if message:
             responses = []
 
-            prompt = prompts["question_prompt"].format(message)
+            prompt = prompts[language]["question_prompt"].format(message)
         else:
-            prompt = prompts["continuation_prompt"].format(" ".join(responses))
+            prompt = prompts[language]["continuation_prompt"].format(
+                " ".join(responses)
+            )
 
         response_lines = (
             text_generator.generate(prompt, max_new_tokens=128, **kwargs)
@@ -193,11 +209,18 @@ def generate_responses(
         sentence = sentences[random.randint(0, len(sentences) - 1)]
         return sentence, responses
 
+    def find_language(languages: list[str]) -> str:
+        return Counter(languages).most_common(1)[0][0]
+
     try:
         if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
             login(huggingface_token)
 
-        stt = Whisper(whisper_kwargs.pop("model"), use_float16=True)
+        stt = Whisper(
+            whisper_kwargs.pop("model"),
+            multilang=len(languages) > 1,
+            use_float16=whisper_kwargs.pop("use_float16"),
+        )
         cloner = VoiceCloner()
         tts = Bark(
             bark_kwargs.pop("model"),
@@ -224,8 +247,9 @@ def generate_responses(
             message_path = receive_message.recv()
 
             # transcribe message
-            message, _ = stt.transcribe_audio(message_path)
-            print(f"Received message: '{message}'.")
+            message, langs = stt.transcribe_audio(message_path)
+            current_lang = find_language(langs) if langs else default_lang
+            print(f"Received message: '{message}' in language: {current_lang}.")
 
             # clone voice
             voice = cloner.clone(message_path)
@@ -235,7 +259,7 @@ def generate_responses(
                 seed = receive_seed.recv()
                 text_generator.set_seed(seed)
 
-            text, responses = next_response(message, **gpt_kwargs)
+            text, responses = next_response(current_lang, message, **gpt_kwargs)
             # generate responses while no new message has been received and users are connected
             while not receive_message.poll():
                 print(f"Voicing response: '{text}' (seed: {seed})...")
@@ -248,15 +272,25 @@ def generate_responses(
 
                 send_response.send(speech_data)
 
-                text, responses = next_response(message, responses, **gpt_kwargs)
+                text, responses = next_response(
+                    current_lang, message, responses, **gpt_kwargs
+                )
     except KeyboardInterrupt:
         pass
 
 
+def parse_comma_list(s: list | str) -> list[str]:
+    if isinstance(s, list):
+        return s
+    return [e.strip() for e in s.split(",")]
+
+
 # fmt: off
 @click.command()
+# whisper options
 @click.option("--whisper_model", type=str, required=True,                         help="The whisper model for speech transcription")
-
+@click.option("--whisper_use_float16", is_flag=True, default=False,               help="Whether to use float16 instead of float32 for whisper speech to text (lower vram usage, shorter inference time, possible quality degradation)")
+# text generation options
 @click.option("--gpt_model", type=str, required=True,                             help="The transformer model for speech generation")
 @click.option("--gpt_temperature", type=click.FloatRange(0.0),                    help="The value used to modulate the next token probabilities")
 @click.option("--gpt_top_k", type=click.IntRange(0),                              help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
@@ -264,7 +298,7 @@ def generate_responses(
 @click.option("--gpt_do_sample", is_flag=True, default=None,                      help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
 @click.option("--gpt_use_bfloat16", is_flag=True, default=False,                  help="Load the model as bfloat16 instead of float32")
 @click.option("--gpt_device_map", type=click.Choice(["auto"]),                    help="When set to 'auto', automatically fills all available space on the GPU(s) first, then the CPU, and finally, the hard drive")
-
+# text to speech options
 @click.option("--bark_model", type=str, required=True,                            help="The bark model for text to speech")
 @click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),          help="Temperature for the bark generation (semantic/text)")
 @click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),            help="Temperature for the bark generation (course waveform)")
@@ -272,9 +306,12 @@ def generate_responses(
 @click.option("--bark_use_better_transformer", is_flag=True, default=False,       help="Whether to optimize bark with BetterTransformer (shorter inference time)")
 @click.option("--bark_use_float16", is_flag=True, default=False,                  help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation)")
 @click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
-
+# sentence splitting options
 @click.option("--wtpsplit_model", type=str, required=True,                        help="The wtpsplit model for sentence splitting")
-
+# language options
+@click.option("--languages", type=parse_comma_list, default=["english"],          help="The languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
+@click.option("--default_language", type=str, default="english",                  help="The fallback language in case the detected language is not provided")
+# prompts
 @click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def respond(**kwarks) -> None:

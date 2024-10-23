@@ -201,6 +201,7 @@ def generate_responses(
         cloner = VoiceCloner()
         tts = Bark(
             bark_kwargs.pop("model"),
+            use_better_transformer=bark_kwargs.pop("use_better_transformer"),
             use_float16=bark_kwargs.pop("use_float16"),
             cpu_offload=bark_kwargs.pop("cpu_offload"),
         )
@@ -268,6 +269,7 @@ def generate_responses(
 @click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),          help="Temperature for the bark generation (semantic/text)")
 @click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),            help="Temperature for the bark generation (course waveform)")
 @click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5, help="Temperature for the bark generation (fine waveform)")
+@click.option("--bark_use_better_transformer", is_flag=True, default=False,       help="Whether to optimize bark with BetterTransformer (shorter inference time)")
 @click.option("--bark_use_float16", is_flag=True, default=False,                  help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation)")
 @click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
 

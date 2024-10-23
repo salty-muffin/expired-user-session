@@ -95,8 +95,9 @@ class VoiceCloner:
 class Bark:
     def __init__(
         self,
-        model_name,
+        model_name: str,
         device: str | None = None,
+        use_better_transformer=False,
         use_float16=False,
         cpu_offload=False,
     ) -> None:
@@ -121,7 +122,8 @@ class Bark:
         )
 
         if "cuda" in self._device:
-            # self._model = BetterTransformer.transform(self._model)
+            if use_better_transformer:
+                self._model = BetterTransformer.transform(self._model)
             if cpu_offload:
                 self._model.enable_cpu_offload()
 

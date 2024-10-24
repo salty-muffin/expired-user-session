@@ -1,11 +1,8 @@
-from typing import Literal
-
 # filter out deprication warnings
 import warnings
 
 warnings.filterwarnings("ignore")
 
-import os
 import subprocess
 import torch
 from transformers import pipeline, set_seed, GPT2Tokenizer

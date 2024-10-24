@@ -113,6 +113,7 @@ def test(
 @click.option("--prompt", type=str, required=True)
 @click.option("--language", type=str, required=True)
 @click.option("--model", type=str, required=True)
+@click.option("--device", type=str, default=None)
 @click.option("--device_map", type=str, default=None)
 @click.option("--ctranslate_dir", type=click.Path(file_okay=False))
 @click.option("--activation_scales", type=click.Path(exists=True, dir_okay=False))
@@ -128,6 +129,7 @@ def run_test(
     prompt: str,
     language: str,
     model: str,
+    device: str,
     device_map: str,
     ctranslate_dir: str,
     activation_scales: str,
@@ -167,6 +169,7 @@ def run_test(
                     model=model,
                     ctranslate_dir=ctranslate_dir,
                     activation_scales=activation_scales,
+                    device=device,
                     device_map=device_map,
                     temperature=temperature,
                     top_k=top_k,

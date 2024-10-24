@@ -45,11 +45,13 @@ parameters = [
         "top_k": 50,
         "top_p": 1.0,
         "do_sample": True,
-        "dtype": "bfloat16",
+        "ctranslate_dir": "server/models/Llama-3.1-8B",
+        "device": "cpu",
+        "dtype": "int8",
         # "device_map": "auto",
     }
 ]
-temperatures = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
+temperatures = [1.0]
 
 len_tests = len(parameters) * len(temperatures)
 print(f"running {len_tests} tests...")

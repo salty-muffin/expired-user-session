@@ -91,6 +91,7 @@
                 "--whisper_model=openai/whisper-small",
                 "--whisper_dtype=float16",
                 "--gpt_model=facebook/opt-1.3b",
+                "--gpt_dtype=bfloat16",
                 "--gpt_temperature=1.1",  // default: 1.0
                 "--gpt_top_k=50",  // default: 50
                 "--gpt_top_p=1.0",  // default: 1.0
@@ -103,6 +104,8 @@
                 "--default_language=english",
                 "--translate",
                 "--opus_model_names_base=Helsinki-NLP/opus-mt-{}-{}",
+                // "--opus_ctranslate_dir=models/ctranslate2/opus-mt",
+                // "--opus_dtype=int8_float16",
                 "prompts.yml"
             ],
             "console": "integratedTerminal"

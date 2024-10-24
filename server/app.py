@@ -136,7 +136,7 @@ def generate_responses(
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator, TextGeneratorCTranslate
     from sentence_splitter import SentenceSplitter
-    from translator import Opus
+    from translator import Opus, OpusCTranslate2
 
     # get languages & prompts
     languages = kwargs.pop("languages")
@@ -263,11 +263,21 @@ def generate_responses(
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
         # only load opus translation models if translation is enabled
         if translate:
-            translator = Opus(
-                opus_kwargs.pop("model_names_base"),
-                languages,
-                dtype=opus_kwargs.pop("dtype"),
-            )
+            if "ctranslate_dir" in opus_kwargs.keys():
+                translator = OpusCTranslate2(
+                    opus_kwargs.pop("model_names_base"),
+                    languages,
+                    ctranslate_dir=opus_kwargs.pop("ctranslate_dir"),
+                    dtype=opus_kwargs.pop("dtype"),
+                    device="cpu",
+                )
+            else:
+                translator = Opus(
+                    opus_kwargs.pop("model_names_base"),
+                    languages,
+                    dtype=opus_kwargs.pop("dtype"),
+                    device="cpu",
+                )
 
         models_ready.set()
 
@@ -285,6 +295,7 @@ def generate_responses(
             current_lang = find_language(langs) if langs else default_lang
             print(f"Received message: '{message}' in language: {current_lang}.")
             # translate if it should
+            translated_lang = default_lang
             if translate and current_lang != default_lang:
                 translated_lang = current_lang
                 current_lang = default_lang
@@ -335,7 +346,7 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.command()
 # whisper options
 @click.option("--whisper_model", type=str, required=True,                              help="Whisper model for speech transcription")
-@click.option("--whisper_ctranslate_dir", type=click.Path(file_okay=False),            help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+# @click.option("--whisper_ctranslate_dir", type=click.Path(file_okay=False),            help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
 @click.option("--whisper_dtype", type=str, default="default",                          help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # text generation options
 @click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")

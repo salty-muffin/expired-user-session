@@ -63,12 +63,10 @@ class TextGeneratorCTranslate(TextGenerator):
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16
-
         print(f"Using {device} with {dtype} for text generation (CTranslate2).")
 
-        # convert model, if it hasn't been converted yet.
-        if dtype in ["default", "auto"]:
+        # convert model, if it hasn't been converted yet
+        if dtype not in ["default", "auto"]:
             ctranslate_dir += f"--{dtype}"
         command = [
             "ct2-transformers-converter",
@@ -102,6 +100,8 @@ class TextGeneratorCTranslate(TextGenerator):
             ct_kwargs["sampling_topk"] = kwargs["top_k"]
         if "top_p" in kwargs.keys():
             ct_kwargs["sampling_topp"] = kwargs["top_p"]
+        if "do_sample" in kwargs.keys():
+            ct_kwargs["beam_size"] = 1
 
         start_tokens = self._tokenizer.convert_ids_to_tokens(
             self._tokenizer.encode(prompt)

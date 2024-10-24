@@ -15,9 +15,12 @@ class TextGenerator:
         model_name: str,
         dtype="default",
         device: str | None = None,
+        device_map: str | None = None,
     ) -> None:
-        if device is None:
+        if device is None and device_map is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        if device_map is not None:
+            device = None
 
         dtype_map = {
             "default": None,
@@ -37,6 +40,7 @@ class TextGenerator:
             model=model_name,
             torch_dtype=torch_dtype,
             device=device,
+            device_map=device_map,
         )
 
     def set_seed(self, seed: int) -> None:

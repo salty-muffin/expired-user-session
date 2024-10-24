@@ -254,10 +254,12 @@ def generate_responses(
                 dtype=gpt_kwargs.pop("dtype"),
                 activation_scales=gpt_kwargs.pop("activation_scales", None),
             )
+            gpt_kwargs.pop("gpt_device_map", None)
         else:
             text_generator = TextGenerator(
                 gpt_kwargs.pop("model"),
                 dtype=gpt_kwargs.pop("dtype"),
+                device_map=gpt_kwargs.pop("gpt_device_map", None),
             )
             gpt_kwargs.pop("activation_scales", None)
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
@@ -350,6 +352,7 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.option("--whisper_dtype", type=str, default="default",                          help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # text generation options
 @click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
+@click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
 @click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
 @click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False), help="Path to the activation scales for converting the model to CTranslate2")
 @click.option("--gpt_temperature", type=click.FloatRange(0.0),                         help="Value used to modulate the next token probabilities")

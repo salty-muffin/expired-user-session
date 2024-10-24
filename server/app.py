@@ -136,6 +136,7 @@ def generate_responses(
     from tts import VoiceCloner, Bark
     from text_generator import TextGenerator
     from sentence_splitter import SentenceSplitter
+    from translator import Opus
 
     # get languages & prompts
     languages = kwargs.pop("languages")
@@ -143,10 +144,27 @@ def generate_responses(
     with open(kwargs.pop("prompts")) as file:
         prompts: dict = yaml.safe_load(file)
 
+    # check if translation is enabled
+    translate = kwargs.pop("translate")
+    if translate and languages <= 1:
+        translate = False
+        print(
+            "Warning: 'translate' flag is set but only one language is given. Nothing will be translated."
+        )
+
     # check if prompts for all languages exist
-    for lang in languages:
-        if lang not in prompts.keys():
-            raise RuntimeError(f"No prompts for language '{lang}' was provided")
+    if default_lang not in languages:
+        raise RuntimeError(
+            f"Default language not present in languages. Please change the languages."
+        )
+    if default_lang not in prompts.keys():
+        raise RuntimeError(
+            f"No prompts for default language '{default_lang}' was provided"
+        )
+    if translate:
+        for lang in languages:
+            if lang not in prompts.keys():
+                raise RuntimeError(f"No prompts for language '{lang}' was provided")
 
     def filter_kwargs_by_prefix(prefix, kwargs, remove_none=False):
         """
@@ -177,6 +195,7 @@ def generate_responses(
     gpt_kwargs = filter_kwargs_by_prefix("gpt_", kwargs, remove_none=True)
     bark_kwargs = filter_kwargs_by_prefix("bark_", kwargs, remove_none=True)
     wtpsplit_kwargs = filter_kwargs_by_prefix("wtpsplit_", kwargs, remove_none=True)
+    opus_kwargs = filter_kwargs_by_prefix("opus_", kwargs, remove_none=True)
 
     def next_response(
         language: str, message: str | None = None, responses=[], **kwargs
@@ -234,6 +253,9 @@ def generate_responses(
             use_bfloat16=gpt_kwargs.pop("use_bfloat16"),
         )
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
+        # only load opus translation models if translation is enabled
+        if translate:
+            translator = Opus(opus_kwargs.pop("model_names_base"), languages)
 
         models_ready.set()
 
@@ -250,6 +272,12 @@ def generate_responses(
             message, langs = stt.transcribe_audio(message_path)
             current_lang = find_language(langs) if langs else default_lang
             print(f"Received message: '{message}' in language: {current_lang}.")
+            # translate if it should
+            if translate and current_lang != default_lang:
+                translated_lang = current_lang
+                current_lang = default_lang
+                message = translator.translate(message, translated_lang, default_lang)
+                print(f"Translated message to: '{message}'.")
 
             # clone voice
             voice = cloner.clone(message_path)
@@ -262,6 +290,12 @@ def generate_responses(
             text, responses = next_response(current_lang, message, **gpt_kwargs)
             # generate responses while no new message has been received and users are connected
             while not receive_message.poll():
+                if translate and translated_lang != default_lang:
+                    print(
+                        f"Translating response: '{text}' (target: {translated_lang})..."
+                    )
+                    text = translator.translate(text, default_lang, translated_lang)
+
                 print(f"Voicing response: '{text}' (seed: {seed})...")
 
                 speech_data = tts.generate(voice, text, **bark_kwargs)
@@ -289,7 +323,7 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.command()
 # whisper options
 @click.option("--whisper_model", type=str, required=True,                         help="The whisper model for speech transcription")
-@click.option("--whisper_use_float16", is_flag=True, default=False,               help="Whether to use float16 instead of float32 for whisper speech to text (lower vram usage, shorter inference time, possible quality degradation)")
+@click.option("--whisper_use_float16", is_flag=True, default=False,               help="Use float16 instead of float32 for whisper speech to text (lower vram usage, shorter inference time, possible quality degradation)")
 # text generation options
 @click.option("--gpt_model", type=str, required=True,                             help="The transformer model for speech generation")
 @click.option("--gpt_temperature", type=click.FloatRange(0.0),                    help="The value used to modulate the next token probabilities")
@@ -303,14 +337,17 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),          help="Temperature for the bark generation (semantic/text)")
 @click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),            help="Temperature for the bark generation (course waveform)")
 @click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5, help="Temperature for the bark generation (fine waveform)")
-@click.option("--bark_use_better_transformer", is_flag=True, default=False,       help="Whether to optimize bark with BetterTransformer (shorter inference time)")
-@click.option("--bark_use_float16", is_flag=True, default=False,                  help="Whether to use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation)")
-@click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Whether to offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
+@click.option("--bark_use_better_transformer", is_flag=True, default=False,       help="Optimize bark with BetterTransformer (shorter inference time)")
+@click.option("--bark_use_float16", is_flag=True, default=False,                  help="Use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation)")
+@click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
 # sentence splitting options
 @click.option("--wtpsplit_model", type=str, required=True,                        help="The wtpsplit model for sentence splitting")
 # language options
 @click.option("--languages", type=parse_comma_list, default=["english"],          help="The languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
 @click.option("--default_language", type=str, default="english",                  help="The fallback language in case the detected language is not provided")
+# translation
+@click.option("--translate", is_flag=True, default=False,                         help="Always translate to and from the default language instead of using a multi language model")
+@click.option("--opus_model_names_base", type=str,                                help="A string to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
 # prompts
 @click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on

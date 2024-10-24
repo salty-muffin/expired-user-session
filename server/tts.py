@@ -119,7 +119,9 @@ class Bark:
             )
         torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["default"]
 
-        print(f"Using {self._device} with {dtype} for bark text to speech.")
+        print(
+            f"Using {self._device} with {dtype} for bark text to speech with '{model_name}'."
+        )
 
         self._processor: BarkProcessor = BarkProcessor.from_pretrained(model_name)
         self._model: BarkModel = BarkModel.from_pretrained(

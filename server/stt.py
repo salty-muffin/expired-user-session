@@ -29,7 +29,9 @@ class Whisper:
             )
         torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["default"]
 
-        print(f"Using {device} with {dtype} for whisper speech to text.")
+        print(
+            f"Using {device} with {dtype} for whisper speech to text with '{model_name}'."
+        )
 
         generate_kwargs = {"task": "transcribe"} if multilang else None
 

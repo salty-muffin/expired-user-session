@@ -41,7 +41,7 @@ class Opus:
         torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["default"]
 
         print(
-            f"Using {device} with {dtype} for Opus text translation using single models."
+            f"Using {device} with {dtype} for Opus text translation using single models with '{model_names_base}'."
         )
 
         # generate all all possible language pairs
@@ -173,7 +173,7 @@ class T5:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self._device = device
 
-        print(f"Using {device} for T5 text translation.")
+        print(f"Using {device} for T5 text translation with '{model_name}'.")
 
         self._tokenizer = T5Tokenizer.from_pretrained(model_name, legacy=False)
         self._model = T5ForConditionalGeneration.from_pretrained(model_name).to(
@@ -214,7 +214,7 @@ class OpusMul:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
         print(
-            f"Using {device} for Opus text translation using the multilang to unknown method."
+            f"Using {device} for Opus text translation using the multilang to unknown method with '{model_name}'."
         )
 
         self._translator = pipeline("translation", model=model_name, device=device)
@@ -243,9 +243,7 @@ class OpusSingle:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        print(
-            f"Using {device} for Opus text translation using the multilang to unknown method."
-        )
+        print(f"Using {device} for Opus text translation with '{model_name}'.")
 
         self._translator = pipeline(
             "translation",

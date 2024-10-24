@@ -33,7 +33,7 @@ class TextGenerator:
             )
         torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["default"]
 
-        print(f"Using {device} with {dtype} for text generation.")
+        print(f"Using {device} with {dtype} for text generation with '{model_name}'.")
 
         self._generator = pipeline(
             "text-generation",
@@ -63,7 +63,9 @@ class TextGeneratorCTranslate(TextGenerator):
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        print(f"Using {device} with {dtype} for text generation (CTranslate2).")
+        print(
+            f"Using {device} with {dtype} for text generation (CTranslate2) with '{model_name}'."
+        )
 
         # convert model, if it hasn't been converted yet
         if dtype not in ["default", "auto"]:

@@ -6,31 +6,35 @@ prompt = "Hello, is anybody out there?"
 parameters = [
     {
         "model": "facebook/opt-1.3b",
+        "language": "english",
         "top_k": 50,
         "top_p": 1.0,
         "do_sample": True,
-        "use_bfloat16": False,
+        "dtype": "bfloat32",
     },
     {
         "model": "meta-llama/Llama-3.2-1B",
+        "language": "english",
         "top_k": 50,
         "top_p": 1.0,
         "do_sample": True,
-        "use_bfloat16": True,
+        "dtype": "bfloat16",
     },
     {
         "model": "meta-llama/Llama-3.2-1B",
+        "language": "english",
         "top_k": 50,
         "top_p": 1.0,
         "do_sample": True,
-        "use_bfloat16": False,
+        "dtype": "bfloat32",
     },
     {
         "model": "meta-llama/Llama-3.2-3B",
+        "language": "english",
         "top_k": 50,
         "top_p": 1.0,
         "do_sample": True,
-        "use_bfloat16": True,
+        "dtype": "bfloat16",
     },
 ]
 temperatures = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
@@ -47,15 +51,12 @@ try:
                 f"--runs={runs}",
                 f"--iterations={iterations}",
                 f"--prompt={prompt}",
-                f"--model={p['model']}",
-                f"--top_k={p['top_k']}",
-                f"--top_p={p['top_p']}",
                 f"--temperature={t}",
             ]
-            if p["do_sample"]:
+            if p.pop("do_sample"):
                 command.append("--do_sample")
-            if p["use_bfloat16"]:
-                command.append("--use_bfloat16")
+            for key, value in p.items():
+                command.append(f"--{key}={value}")
 
             print(
                 f"executing {p_i * len(temperatures) + t_i + 1}/{len_tests}: {' '.join(command)}"

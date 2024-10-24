@@ -31,7 +31,9 @@ class TextGenerator:
             raise ValueError(
                 f"dtype for {type(self).__name__} (transformers) only accepts {dtype_map.keys()}"
             )
-        torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["default"]
+        torch_dtype = (
+            dtype_map[dtype] if device and "cuda" in device else dtype_map["default"]
+        )
 
         print(f"Using {device} with {dtype} for text generation with '{model_name}'.")
 

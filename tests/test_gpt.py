@@ -9,8 +9,12 @@ import yaml
 
 from huggingface_hub import login
 
-from server.text_generator import TextGenerator, TextGeneratorCTranslate
-from server.sentence_splitter import SentenceSplitter
+import sys
+
+sys.path.append("server/")
+
+from text_generator import TextGenerator, TextGeneratorCTranslate
+from sentence_splitter import SentenceSplitter
 
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
@@ -144,7 +148,7 @@ def run_test(
         ) as file:
             print(f"executing {runs} runs.", file=file, flush=True)
             print(f"prompt: \t\t{prompt}", file=file, flush=True)
-            print(f"language: \t{language}", file=file, flush=True)
+            print(f"language: \t\t{language}", file=file, flush=True)
             print(f"model: \t\t\t{model}", file=file, flush=True)
             print(f"ctranslate: \t{bool(ctranslate_dir)}", file=file, flush=True)
             print(f"device_map: \t{device_map}", file=file, flush=True)

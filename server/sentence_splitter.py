@@ -7,7 +7,8 @@ class SentenceSplitter:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        print(f"Using {device} for sentence splitting.")
+        print(f"Using {device} for sentence splitting with '{model_name}'.")
+
         split_model_name = model_name.split("/")
         self._model = SaT(split_model_name[1], hub_prefix=split_model_name[0])
 

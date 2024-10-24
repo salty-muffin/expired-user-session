@@ -134,9 +134,9 @@ def generate_responses(
 
     from stt import Whisper
     from tts import VoiceCloner, Bark
-    from text_generator import TextGenerator
+    from text_generator import TextGenerator, TextGeneratorCTranslate
     from sentence_splitter import SentenceSplitter
-    from translator import Opus
+    from translator import Opus, OpusCTranslate2
 
     # get languages & prompts
     languages = kwargs.pop("languages")
@@ -238,24 +238,48 @@ def generate_responses(
         stt = Whisper(
             whisper_kwargs.pop("model"),
             multilang=len(languages) > 1,
-            use_float16=whisper_kwargs.pop("use_float16"),
+            dtype=whisper_kwargs.pop("dtype"),
         )
         cloner = VoiceCloner()
         tts = Bark(
             bark_kwargs.pop("model"),
+            dtype=bark_kwargs.pop("dtype"),
             use_better_transformer=bark_kwargs.pop("use_better_transformer"),
-            use_float16=bark_kwargs.pop("use_float16"),
             cpu_offload=bark_kwargs.pop("cpu_offload"),
         )
-        text_generator = TextGenerator(
-            gpt_kwargs.pop("model"),
-            device_map=gpt_kwargs.pop("device_map", None),
-            use_bfloat16=gpt_kwargs.pop("use_bfloat16"),
-        )
+        if "ctranslate_dir" in gpt_kwargs.keys():
+            text_generator = TextGeneratorCTranslate(
+                gpt_kwargs.pop("model"),
+                ctranslate_dir=gpt_kwargs.pop("ctranslate_dir"),
+                dtype=gpt_kwargs.pop("dtype"),
+                activation_scales=gpt_kwargs.pop("activation_scales", None),
+            )
+            gpt_kwargs.pop("gpt_device_map", None)
+        else:
+            text_generator = TextGenerator(
+                gpt_kwargs.pop("model"),
+                dtype=gpt_kwargs.pop("dtype"),
+                device_map=gpt_kwargs.pop("gpt_device_map", None),
+            )
+            gpt_kwargs.pop("activation_scales", None)
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
         # only load opus translation models if translation is enabled
         if translate:
-            translator = Opus(opus_kwargs.pop("model_names_base"), languages)
+            if "ctranslate_dir" in opus_kwargs.keys():
+                translator = OpusCTranslate2(
+                    opus_kwargs.pop("model_names_base"),
+                    languages,
+                    ctranslate_dir=opus_kwargs.pop("ctranslate_dir"),
+                    dtype=opus_kwargs.pop("dtype"),
+                    device="cpu",
+                )
+            else:
+                translator = Opus(
+                    opus_kwargs.pop("model_names_base"),
+                    languages,
+                    dtype=opus_kwargs.pop("dtype"),
+                    device="cpu",
+                )
 
         models_ready.set()
 
@@ -273,6 +297,7 @@ def generate_responses(
             current_lang = find_language(langs) if langs else default_lang
             print(f"Received message: '{message}' in language: {current_lang}.")
             # translate if it should
+            translated_lang = default_lang
             if translate and current_lang != default_lang:
                 translated_lang = current_lang
                 current_lang = default_lang
@@ -322,32 +347,37 @@ def parse_comma_list(s: list | str) -> list[str]:
 # fmt: off
 @click.command()
 # whisper options
-@click.option("--whisper_model", type=str, required=True,                         help="The whisper model for speech transcription")
-@click.option("--whisper_use_float16", is_flag=True, default=False,               help="Use float16 instead of float32 for whisper speech to text (lower vram usage, shorter inference time, possible quality degradation)")
+@click.option("--whisper_model", type=str, required=True,                              help="Whisper model for speech transcription")
+# @click.option("--whisper_ctranslate_dir", type=click.Path(file_okay=False),            help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--whisper_dtype", type=str, default="default",                          help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # text generation options
-@click.option("--gpt_model", type=str, required=True,                             help="The transformer model for speech generation")
-@click.option("--gpt_temperature", type=click.FloatRange(0.0),                    help="The value used to modulate the next token probabilities")
-@click.option("--gpt_top_k", type=click.IntRange(0),                              help="The number of highest probability vocabulary tokens to keep for top-k-filtering")
-@click.option("--gpt_top_p", type=click.FloatRange(0.0),                          help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
-@click.option("--gpt_do_sample", is_flag=True, default=None,                      help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
-@click.option("--gpt_use_bfloat16", is_flag=True, default=False,                  help="Load the model as bfloat16 instead of float32")
-@click.option("--gpt_device_map", type=click.Choice(["auto"]),                    help="When set to 'auto', automatically fills all available space on the GPU(s) first, then the CPU, and finally, the hard drive")
+@click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
+@click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
+@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False), help="Path to the activation scales for converting the model to CTranslate2")
+@click.option("--gpt_temperature", type=click.FloatRange(0.0),                         help="Value used to modulate the next token probabilities")
+@click.option("--gpt_top_k", type=click.IntRange(0),                                   help="Nmber of highest probability vocabulary tokens to keep for top-k-filtering")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0),                               help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
+@click.option("--gpt_do_sample", is_flag=True, default=None,                           help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
+@click.option("--gpt_dtype", type=str, default="default",                              help="Torch dtype to use for the model (transformers: default, float32, bfloat16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # text to speech options
-@click.option("--bark_model", type=str, required=True,                            help="The bark model for text to speech")
-@click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),          help="Temperature for the bark generation (semantic/text)")
-@click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),            help="Temperature for the bark generation (course waveform)")
-@click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5, help="Temperature for the bark generation (fine waveform)")
-@click.option("--bark_use_better_transformer", is_flag=True, default=False,       help="Optimize bark with BetterTransformer (shorter inference time)")
-@click.option("--bark_use_float16", is_flag=True, default=False,                  help="Use float16 instead of float32 for bark text to speech (lower vram usage, shorter inference time, quality degradation)")
-@click.option("--bark_cpu_offload", is_flag=True, default=False,                  help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
+@click.option("--bark_model", type=str, required=True,                                 help="Bark model for text to speech")
+@click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),               help="Temperature for the bark generation (semantic/text)")
+@click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),                 help="Temperature for the bark generation (course waveform)")
+@click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5,      help="Temperature for the bark generation (fine waveform)")
+@click.option("--bark_use_better_transformer", is_flag=True, default=False,            help="Optimize bark with BetterTransformer (shorter inference time)")
+@click.option("--bark_dtype", type=str, default="default",                             help="Torch dtype to use for the model (default, float32, float16)")
+@click.option("--bark_cpu_offload", is_flag=True, default=False,                       help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
 # sentence splitting options
-@click.option("--wtpsplit_model", type=str, required=True,                        help="The wtpsplit model for sentence splitting")
+@click.option("--wtpsplit_model", type=str, required=True,                             help="Wtpsplit model for sentence splitting")
 # language options
-@click.option("--languages", type=parse_comma_list, default=["english"],          help="The languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
-@click.option("--default_language", type=str, default="english",                  help="The fallback language in case the detected language is not provided")
+@click.option("--languages", type=parse_comma_list, default=["english"],               help="Languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
+@click.option("--default_language", type=str, default="english",                       help="Fallback language in case the detected language is not provided")
 # translation
-@click.option("--translate", is_flag=True, default=False,                         help="Always translate to and from the default language instead of using a multi language model")
-@click.option("--opus_model_names_base", type=str,                                help="A string to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
+@click.option("--translate", is_flag=True, default=False,                              help="Always translate to and from the default language instead of using a multi language model")
+@click.option("--opus_model_names_base", type=str,                                     help="String to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
+@click.option("--opus_ctranslate_dir", type=click.Path(file_okay=False),               help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--opus_dtype", type=str, default="default",                             help="Torch dtype to use for the model (transformers: default, float32; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # prompts
 @click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on

@@ -1,7 +1,7 @@
 services:
   server:
     build: ./server
-    command: ["bash", "run.sh"]
+    command: ["bash", "run-opt-1.3b.sh"]
     restart: unless-stopped
     volumes:
       - ./server:/app/server

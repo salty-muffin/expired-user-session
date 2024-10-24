@@ -218,7 +218,7 @@ const main = async (pass: string) => {
 						seed += pixels[i]; // sum the red channel for simplicity
 					}
 
-					log(terminal, `Generated seed: ${seed}.`);
+					log(terminal, `Obtained seed: ${seed}.`);
 					socket.emit('seed', { seed: seed });
 				}
 				// stop the video stream

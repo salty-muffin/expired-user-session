@@ -9,8 +9,12 @@ import yaml
 
 from huggingface_hub import login
 
-from server.text_generator import TextGenerator
-from server.sentence_splitter import SentenceSplitter
+import sys
+
+sys.path.append("server/")
+
+from text_generator import TextGenerator, TextGeneratorCTranslate
+from sentence_splitter import SentenceSplitter
 
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
@@ -53,9 +57,12 @@ def next_response(
 def test(
     iterations: int,
     message: str,
+    language: str,
     model: str,
-    device_map: Literal["auto"] | None = None,
-    use_bfloat16: bool = False,
+    ctranslate_dir: str | None,
+    activation_scales: str | None,
+    device_map: str | None = None,
+    dtype: str = "default",
     print_file=None,
     **kwargs,
 ) -> None:
@@ -64,11 +71,21 @@ def test(
 
     # get prompts
     with open("server/prompts.yml") as file:
-        prompts = yaml.safe_load(file)
+        prompts = yaml.safe_load(file)[language]
 
-    text_generator = TextGenerator(
-        model, device_map=device_map, use_bfloat16=use_bfloat16
-    )
+    if ctranslate_dir:
+        text_generator = TextGeneratorCTranslate(
+            model,
+            ctranslate_dir=ctranslate_dir,
+            activation_scales=activation_scales,
+            dtype=dtype,
+        )
+    else:
+        text_generator = TextGenerator(
+            model,
+            dtype=dtype,
+            device_map=device_map,
+        )
     sentence_splitter = SentenceSplitter("segment-any-text/sat-3l-sm", "cpu")
 
     text_generator.set_seed(int(time.time()))
@@ -94,53 +111,71 @@ def test(
 @click.option("--runs", type=int, required=True)
 @click.option("--iterations", type=int, required=True)
 @click.option("--prompt", type=str, required=True)
+@click.option("--language", type=str, required=True)
 @click.option("--model", type=str, required=True)
+@click.option("--device", type=str, default=None)
+@click.option("--device_map", type=str, default=None)
+@click.option("--ctranslate_dir", type=click.Path(file_okay=False))
+@click.option("--activation_scales", type=click.Path(exists=True, dir_okay=False))
 @click.option("--temperature", type=float, default=1.0)
 @click.option("--top_k", type=int, default=50)
 @click.option("--top_p", type=float, default=1.0)
 @click.option("--do_sample", is_flag=True, default=False)
-@click.option("--use_bfloat16", is_flag=True, default=False)
+@click.option("--dtype", type=str, default="default")
 # fmt: on
 def run_test(
     runs: int,
     iterations: int,
     prompt: str,
+    language: str,
     model: str,
+    device: str,
+    device_map: str,
+    ctranslate_dir: str,
+    activation_scales: str,
     temperature: float,
     top_k: int,
     top_p: float,
     do_sample: bool,
-    use_bfloat16: bool,
+    dtype: bool,
 ):
     try:
         with open(
             os.path.join(
                 "server",
                 "tests",
-                f"{model.split('/')[-1]}_temp{temperature}{f'_top_k{top_k}_top_p{top_p}' if do_sample else ''}{'_bfloat16' if use_bfloat16 else ''}.txt",
+                f"{model.split('/')[-1]}_temp{temperature}{f'_top_k{top_k}_top_p{top_p}' if do_sample else ''}_{dtype}.txt",
             ),
             "w+",
         ) as file:
             print(f"executing {runs} runs.", file=file, flush=True)
-            print(f"model: \t\t\t{model}", file=file, flush=True)
             print(f"prompt: \t\t{prompt}", file=file, flush=True)
+            print(f"language: \t\t{language}", file=file, flush=True)
+            print(f"model: \t\t\t{model}", file=file, flush=True)
+            print(f"ctranslate: \t{bool(ctranslate_dir)}", file=file, flush=True)
+            print(f"device_map: \t{device_map}", file=file, flush=True)
             print(f"temperature: \t{temperature}", file=file, flush=True)
             print(f"top_k: \t\t\t{top_k}", file=file, flush=True)
             print(f"top_p: \t\t\t{top_p}", file=file, flush=True)
             print(f"sample: \t\t{do_sample}", file=file, flush=True)
-            print(f"bfloat16: \t\t{use_bfloat16}", file=file, flush=True)
+            print(f"dtype: \t\t\t{dtype}", file=file, flush=True)
             print("", file=file)
 
             for _ in range(0, runs):
                 test(
                     iterations=iterations,
                     message=prompt,
+                    language=language,
                     model=model,
+                    ctranslate_dir=ctranslate_dir,
+                    activation_scales=activation_scales,
+                    device=device,
+                    device_map=device_map,
                     temperature=temperature,
                     top_k=top_k,
                     top_p=top_p,
                     do_sample=do_sample,
-                    use_bfloat16=use_bfloat16,
+                    dtype=dtype,
                     print_file=file,
                 )
                 print("", file=file, flush=True)

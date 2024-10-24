@@ -1,7 +1,7 @@
 import os
 from server.stt import Whisper
 
-os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "server", "models")
 
 
 def test():

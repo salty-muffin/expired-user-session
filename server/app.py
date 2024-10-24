@@ -213,11 +213,9 @@ def generate_responses(
                 " ".join(responses)
             )
 
-        response_lines = (
-            text_generator.generate(prompt, max_new_tokens=128, **kwargs)
-            .replace(prompt, "")
-            .split("\n")
-        )
+        response_lines = text_generator.generate(prompt, max_new_tokens=128, **kwargs)[
+            len(prompt) : :
+        ].split("\n")
         response_lines = [line.strip() for line in response_lines if line]
         if not len(response_lines):
             return "..."

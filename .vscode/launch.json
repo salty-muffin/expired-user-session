@@ -93,6 +93,9 @@
                 "--whisper_model=openai/whisper-medium",
                 "--whisper_dtype=float16",
                 "--gpt_model=facebook/opt-1.3b",
+                // "--gpt_ctranslate_dir=models/ctranslate2/opt-1.3b",
+                // "--gpt_activation_scales=models/activation_scales/opt-1.3b.pt",
+                // "--gpt_dtype=int8_float16",
                 "--gpt_dtype=bfloat16",
                 "--gpt_temperature=1.1",  // default: 1.0
                 "--gpt_top_k=50",  // default: 50
@@ -106,8 +109,8 @@
                 "--default_language=english",
                 "--translate",
                 "--opus_model_names_base=Helsinki-NLP/opus-mt-{}-{}",
-                // "--opus_ctranslate_dir=models/ctranslate2/opus-mt",
-                // "--opus_dtype=int8_float16",
+                "--opus_ctranslate_dir=models/ctranslate2/opus-mt",
+                "--opus_dtype=int8_float16",
                 "prompts.yml"
             ],
             "console": "integratedTerminal"
@@ -122,12 +125,13 @@
                 "--iterations=10",
                 "--prompt=Hello, is anybody out there?",
                 "--language=english",
-                "--model=meta-llama/Llama-3.1-8B",
-                "--ctranslate_dir=server/models/ctranslate2/Llama-3.1-8B",
+                "--model=facebook/opt-1.3b",
+                "--ctranslate_dir=server/models/ctranslate2/opt-1.3b",
+                "--activation_scales=server/models/activation_scales/opt-1.3b.pt",
                 "--dtype=int8",
                 // "--device=cpu",
                 "--temperature=1.0",
-                "--top_k=1",
+                "--top_k=50",
                 "--top_p=1.0",
                 "--do_sample"
             ],

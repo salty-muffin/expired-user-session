@@ -88,10 +88,10 @@ class TextGeneratorCTranslate(TextGenerator):
             command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
-        if "/opt" in model_name:
-            self._tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-        else:
-            self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # if "/opt" in model_name:
+        #     self._tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+        # else:
+        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         self._generator = ctranslate2.Generator(ctranslate_dir, device=device)
 

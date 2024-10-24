@@ -17,7 +17,7 @@ from text_generator import TextGenerator, TextGeneratorCTranslate
 from sentence_splitter import SentenceSplitter
 
 load_dotenv()
-os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "server", "models")
 
 
 def next_response(
@@ -38,11 +38,9 @@ def next_response(
     generator_kwargs = {
         key: value for key, value in kwargs.items() if value is not None
     }
-    response_lines = (
-        generator.generate(prompt, max_new_tokens=128, **generator_kwargs)
-        .replace(prompt, "")
-        .split("\n")
-    )
+    response_lines = generator.generate(prompt, max_new_tokens=64, **generator_kwargs)[
+        len(prompt) : :
+    ].split("\n")
     response_lines = [line.strip() for line in response_lines if line]
     if not len(response_lines):
         return "..."

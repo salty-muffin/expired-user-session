@@ -2,7 +2,7 @@ import os
 from server.tts import Bark
 from server.audio import convert_audio_to_mp3
 
-os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "server", "models")
 
 
 def test(

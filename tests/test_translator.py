@@ -1,7 +1,7 @@
 import os
 from server.translator import T5, OpusMul, Opus
 
-os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "server", "models")
 
 
 def test_sentence_T5(text):

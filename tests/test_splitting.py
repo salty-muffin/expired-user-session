@@ -3,7 +3,7 @@ import os
 from server.sentence_splitter import SentenceSplitter
 import time
 
-os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
+os.environ["HF_HOME"] = os.path.join(os.getcwd(), "server", "models")
 
 
 def test(text: str, model_name: str, device: str) -> None:

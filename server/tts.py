@@ -98,7 +98,7 @@ class Bark:
         model_name: str,
         device: str | None = None,
         use_better_transformer=False,
-        dtype="float32",
+        dtype="default",
         cpu_offload=False,
     ) -> None:
 
@@ -108,12 +108,16 @@ class Bark:
 
         self._dtype = dtype
 
-        dtype_map = {"float32": torch.float32, "float16": torch.float16}
+        dtype_map = {
+            "default": None,
+            "float32": torch.float32,
+            "float16": torch.float16,
+        }
         if dtype not in dtype_map.keys():
             raise ValueError(
                 f"dtype for {type(self).__name__} (transformers) only accepts {dtype_map.keys()}"
             )
-        torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["float32"]
+        torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["default"]
 
         print(f"Using {self._device} with {dtype} for bark text to speech.")
 

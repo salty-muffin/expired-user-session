@@ -1,7 +1,7 @@
 echo "starting EXPIRED USER SESSION..."
 python -u app.py \
     --whisper_model=openai/whisper-small \
-    --whisper_use_float16 \
+    --whisper_dtype=float16 \
     --gpt_model=meta-llama/Llama-3.2-1B \
     --gpt_use_bfloat16 \
     --gpt_temperature=1.1 \

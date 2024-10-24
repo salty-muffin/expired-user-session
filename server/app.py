@@ -146,7 +146,7 @@ def generate_responses(
 
     # check if translation is enabled
     translate = kwargs.pop("translate")
-    if translate and languages <= 1:
+    if translate and len(languages) <= 1:
         translate = False
         print(
             "Warning: 'translate' flag is set but only one language is given. Nothing will be translated."
@@ -161,7 +161,7 @@ def generate_responses(
         raise RuntimeError(
             f"No prompts for default language '{default_lang}' was provided"
         )
-    if translate:
+    if not translate:
         for lang in languages:
             if lang not in prompts.keys():
                 raise RuntimeError(f"No prompts for language '{lang}' was provided")

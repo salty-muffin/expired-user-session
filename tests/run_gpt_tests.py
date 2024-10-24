@@ -45,7 +45,7 @@ parameters = [
         "top_k": 50,
         "top_p": 1.0,
         "do_sample": True,
-        "ctranslate_dir": "server/models/Llama-3.1-8B",
+        "ctranslate_dir": "server/models/ctranslate2/Llama-3.1-8B",
         "dtype": "int8",
     },
     {
@@ -58,7 +58,7 @@ parameters = [
     },
     {
         "model": "facebook/opt-1.3b",
-        "ctranslate_dir": "server/models/opt-1.3b",
+        "ctranslate_dir": "server/models/ctranslate2/opt-1.3b",
         "activation_scales": "server/models/activation_scales/opt-1.3b.pt",
         "language": "english",
         "top_k": 50,

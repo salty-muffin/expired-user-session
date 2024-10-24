@@ -13,28 +13,27 @@ class TextGenerator:
     def __init__(
         self,
         model_name,
+        dtype="float32",
         device: str | None = None,
         device_map: Literal["auto"] | None = None,
-        use_bfloat16: bool = False,
     ) -> None:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        kwargs = {}
-        if use_bfloat16:
-            kwargs["torch_dtype"] = torch.bfloat16
-        if device_map:
-            print(
-                f"Using device_map '{device_map}' for text generation{' with bfloat16' if use_bfloat16 else ''}."
+        dtype_map = {"float32": torch.float32, "bfloat16": torch.bfloat16}
+        if dtype not in dtype_map.keys():
+            raise ValueError(
+                f"dtype for {type(self).__name__} (transformers) only accepts {dtype_map.keys()}"
             )
-            kwargs["device_map"] = device_map
-        else:
-            print(
-                f"Using {device} for text generation{' with bfloat16' if use_bfloat16 else ''}."
-            )
-            kwargs["device"] = device
+        torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["float32"]
 
-        self._generator = pipeline("text-generation", model=model_name, **kwargs)
+        self._generator = pipeline(
+            "text-generation",
+            model=model_name,
+            torch_dtype=torch_dtype,
+            device=device,
+            device_map=device_map,
+        )
 
     def set_seed(self, seed: int) -> None:
         set_seed(seed)

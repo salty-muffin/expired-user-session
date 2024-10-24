@@ -9,18 +9,23 @@ from transformers import pipeline
 
 class Whisper:
     def __init__(
-        self, model_name: str, multilang=False, use_float16=False, device: str | None = None
+        self,
+        model_name: str,
+        multilang=False,
+        dtype="float32",
+        device: str | None = None,
     ) -> None:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        torch_dtype = (
-            torch.float16 if "cuda" in device and use_float16 else torch.float32
-        )
+        dtype_map = {"float32": torch.float32, "float16": torch.float16}
+        if dtype not in dtype_map.keys():
+            raise ValueError(
+                f"dtype for {type(self).__name__} (transformers) only accepts {dtype_map.keys()}"
+            )
+        torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["float32"]
 
-        print(
-            f"Using {device} with {'float16' if torch_dtype == torch.float16 else 'float32'} for whisper speech to text."
-        )
+        print(f"Using {device} with {dtype} for whisper speech to text.")
 
         generate_kwargs = {"task": "transcribe"} if multilang else None
 

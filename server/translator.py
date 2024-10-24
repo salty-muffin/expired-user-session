@@ -18,6 +18,7 @@ class Opus:
         model_names_base: str,
         languages: list[str],
         mappings={"german": "de", "english": "en"},
+        dtype="float32",
         device: str | None = None,
     ) -> None:
         """
@@ -28,7 +29,16 @@ class Opus:
         if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        print(f"Using {device} for Opus text translation using single models.")
+        dtype_map = {"float32": torch.float32}
+        if dtype not in dtype_map.keys():
+            raise ValueError(
+                f"dtype for {type(self).__name__} (transformers) only accepts {dtype_map.keys()}"
+            )
+        torch_dtype = dtype_map[dtype] if "cuda" in device else dtype_map["float32"]
+
+        print(
+            f"Using {device} with {dtype} for Opus text translation using single models."
+        )
 
         # generate all all possible language pairs
         language_pairs = list(
@@ -43,7 +53,10 @@ class Opus:
         self._pipes = {}
         for pair in self._language_pairs:
             self._pipes["{}-{}".format(*pair)] = pipeline(
-                "translation", model=model_names_base.format(*pair), device=device
+                "translation",
+                model=model_names_base.format(*pair),
+                device=device,
+                torch_dtype=torch_dtype,
             )
 
         self._mappings = mappings

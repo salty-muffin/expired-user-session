@@ -40,8 +40,9 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 - [x] split off ai generation into seperate process, with the server running in the main process. models will be loaded in the ai process. communication will happen through pipes and queues.
 - [x] try to split up model steps (semantic, course and fine) in huggingface for possibility of exiting the loop sooner. if not possible, revert to original bark?
   - currently fails due to vram limits (why?).
-- [ ] pick right whisper model
-- [ ] implement multilanguage
+- [x] pick right whisper model
+- [x] implement multilanguage
+- [ ] implement [AirLLM](https://github.com/lyogavin/airllm) for text generation
 - [ ] find right text generation model
   - [ ] implement needed parameters for each model while retesting for the original one at each step
 - [ ] work over prompts and text generation method

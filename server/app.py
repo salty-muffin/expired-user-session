@@ -134,7 +134,11 @@ def generate_responses(
 
     from stt import Whisper
     from tts import VoiceCloner, Bark
-    from text_generator import TextGenerator, TextGeneratorCTranslate
+    from text_generator import (
+        TextGenerator,
+        TextGeneratorCTranslate,
+        TextGeneratorAirLLM,
+    )
     from sentence_splitter import SentenceSplitter
     from translator import Opus, OpusCTranslate2
 
@@ -252,14 +256,24 @@ def generate_responses(
                 dtype=gpt_kwargs.pop("dtype"),
                 activation_scales=gpt_kwargs.pop("activation_scales", None),
             )
-            gpt_kwargs.pop("gpt_device_map", None)
+            gpt_kwargs.pop("device_map", None)
+            gpt_kwargs.pop("compression", None)
+        elif gpt_kwargs.pop("airllm"):
+            text_generator = TextGeneratorAirLLM(
+                gpt_kwargs.pop("model"),
+                compression=gpt_kwargs.pop("compression"),
+            )
+            gpt_kwargs.pop("activation_scales", None)
+            gpt_kwargs.pop("device_map", None)
+            gpt_kwargs.pop("dtype", None)
         else:
             text_generator = TextGenerator(
                 gpt_kwargs.pop("model"),
                 dtype=gpt_kwargs.pop("dtype"),
-                device_map=gpt_kwargs.pop("gpt_device_map", None),
+                device_map=gpt_kwargs.pop("device_map", None),
             )
             gpt_kwargs.pop("activation_scales", None)
+            gpt_kwargs.pop("compression", None)
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
         # only load opus translation models if translation is enabled
         if translate:
@@ -351,8 +365,10 @@ def parse_comma_list(s: list | str) -> list[str]:
 # text generation options
 @click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
 @click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
-@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2, mutually exclusive with airLLM)")
 @click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False), help="Path to the activation scales for converting the model to CTranslate2")
+@click.option("--gpt_airllm", is_flag=True, default=False,                             help="Use model with airLLM (mutually exclusive with CTranslate2)")
+@click.option("--gpt_compression", type=click.Choice(["4bit", "8bit"]), default=None,  help="AirLLM compression")
 @click.option("--gpt_temperature", type=click.FloatRange(0.0),                         help="Value used to modulate the next token probabilities")
 @click.option("--gpt_top_k", type=click.IntRange(0),                                   help="Nmber of highest probability vocabulary tokens to keep for top-k-filtering")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0),                               help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
@@ -380,6 +396,20 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def respond(**kwarks) -> None:
+    # check click options
+    if kwarks["gpt_ctranslate_dir"] and kwarks["gpt_airllm"]:
+        raise click.ClickException(
+            "'--gpt_ctranslate_dir' and '--gpt_airllm' are mutually exclusive!"
+        )
+    if kwarks["gpt_activation_scales"] and not kwarks["gpt_ctranslate_dir"]:
+        print(
+            "warning: Setting '--gpt_activation_scales' without setting '--gpt_ctranslate_dir' has no effect."
+        )
+    if kwarks["gpt_compression"] and not kwarks["gpt_airllm"]:
+        print(
+            "warning: Setting '--gpt_compression' without setting '--gpt_airllm' has no effect."
+        )
+
     # start response process
     response_process = mp.Process(
         target=generate_responses,

@@ -230,7 +230,7 @@ def generate_responses(
         return Counter(languages).most_common(1)[0][0]
 
     try:
-        if huggingface_token := os.environ.get("HUGGINGFACE_TOKEN"):
+        if huggingface_token := os.environ.get("HF_TOKEN"):
             login(huggingface_token)
 
         stt = Whisper(

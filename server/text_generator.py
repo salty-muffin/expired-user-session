@@ -3,10 +3,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+from typing import Literal
 import subprocess
 import torch
-from transformers import pipeline, set_seed, AutoTokenizer, GPT2Tokenizer
+from transformers import pipeline, set_seed, AutoTokenizer
 import ctranslate2
+from airllm import AutoModel
 
 
 class TextGenerator:
@@ -52,6 +54,58 @@ class TextGenerator:
         return self._generator(
             prompt, pad_token_id=self._generator.tokenizer.eos_token_id, **kwargs
         )[0]["generated_text"].strip()
+
+
+MAX_LENGTH = 512
+
+
+class TextGeneratorAirLLM(TextGenerator):
+    def __init__(
+        self,
+        model_name: str,
+        compression: Literal["4bit", "8bit"] | None = None,
+        device: str | None = None,
+        delete_original=False,
+    ):
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        self._device = device
+
+        print(
+            f"Using {device} with {f'{compression} compression ' if compression else ''}for text generation (airLLM) with '{model_name}'."
+        )
+
+        self._model = AutoModel.from_pretrained(
+            model_name,
+            compression=compression,
+            device=device,
+            delete_original=delete_original,
+        )
+
+    def generate(self, prompt: str, **kwargs) -> str:
+        input_text = [prompt]
+
+        input_tokens = self._model.tokenizer(
+            input_text,
+            return_tensors="pt",
+            return_attention_mask=False,
+            truncation=True,
+            max_length=MAX_LENGTH,
+            padding=False,
+        )
+
+        generation_output = self._model.generate(
+            (
+                input_tokens["input_ids"].cuda()
+                if "cuda" in self._device
+                else input_tokens["input_ids"]
+            ),
+            use_cache=True,
+            return_dict_in_generate=True,
+            **kwargs,
+        )
+
+        return self._model.tokenizer.decode(generation_output.sequences[0])
 
 
 class TextGeneratorCTranslate(TextGenerator):

@@ -3,41 +3,6 @@ import subprocess
 runs = 5
 iterations = 10
 prompt = "Hello, is anybody out there?"
-# parameters = [
-#     {
-#         "model": "facebook/opt-1.3b",
-#         "language": "english",
-#         "top_k": 50,
-#         "top_p": 1.0,
-#         "do_sample": True,
-#         "dtype": "float32",
-#     },
-#     {
-#         "model": "meta-llama/Llama-3.2-1B",
-#         "language": "english",
-#         "top_k": 50,
-#         "top_p": 1.0,
-#         "do_sample": True,
-#         "dtype": "bfloat16",
-#     },
-#     {
-#         "model": "meta-llama/Llama-3.2-1B",
-#         "language": "english",
-#         "top_k": 50,
-#         "top_p": 1.0,
-#         "do_sample": True,
-#         "dtype": "float32",
-#     },
-#     {
-#         "model": "meta-llama/Llama-3.2-3B",
-#         "language": "english",
-#         "top_k": 50,
-#         "top_p": 1.0,
-#         "do_sample": True,
-#         "dtype": "bfloat16",
-#     },
-# ]
-# temperatures = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
 parameters = [
     {
         "model": "meta-llama/Llama-3.1-8B",
@@ -55,16 +20,6 @@ parameters = [
         "top_p": 1.0,
         "do_sample": True,
         "dtype": "float32",
-    },
-    {
-        "model": "facebook/opt-1.3b",
-        "ctranslate_dir": "server/models/ctranslate2/opt-1.3b",
-        "activation_scales": "server/models/activation_scales/opt-1.3b.pt",
-        "language": "english",
-        "top_k": 50,
-        "top_p": 1.0,
-        "do_sample": True,
-        "dtype": "int8",
     },
 ]
 temperatures = [1.0, 1.1, 1.2, 1.3, 1.4]

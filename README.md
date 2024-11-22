@@ -1,4 +1,4 @@
-# ai-spirit-box
+# expired user session
 
 an ai version of the classic spirit box. can be used for post-internet transcommunication (i.e. communication with the spirits of dead users).
 
@@ -48,4 +48,6 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 - [ ] work over prompts and text generation method
   - [ ] test again with removed spaces (server/prompts2.yml)
 - [ ] make dead-profiles page prettier.
+  - [ ] simulate natural scrolling (scroll, stop, scroll stop). maybe with a (ghostly) twist.
+  - [ ] alternate format for showing that they are dead profiles?
 - [ ] backup models, etc. (especially if using original bark).

@@ -8,7 +8,7 @@ const pagesDir = path.join(__dirname, '..', 'public', 'profiles');
 const outputFile = path.join(__dirname, 'profiles.json');
 
 // Function to generate the JSON file with the list of HTML files
-function generateFilesJson() {
+const generateFilesJson = () => {
 	// Read the contents of the pages directory
 	fs.readdir(pagesDir, (err, files) => {
 		if (err) {
@@ -33,7 +33,7 @@ function generateFilesJson() {
 			}
 		});
 	});
-}
+};
 
 // Run the function to generate files.json
 generateFilesJson();

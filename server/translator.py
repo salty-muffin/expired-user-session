@@ -57,7 +57,7 @@ class Opus:
         self._pipes = {}
         for pair in self._language_pairs:
             self._pipes["{}-{}".format(*pair)] = pipeline(
-                "translation",
+                "translation_{}_to_{}".format(*pair),
                 model=model_names_base.format(*pair),
                 device=device,
                 torch_dtype=torch_dtype,

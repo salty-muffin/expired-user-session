@@ -201,38 +201,6 @@ def generate_responses(
     wtpsplit_kwargs = filter_kwargs_by_prefix("wtpsplit_", kwargs, remove_none=True)
     opus_kwargs = filter_kwargs_by_prefix("opus_", kwargs, remove_none=True)
 
-    def next_response(
-        language: str, message: str | None = None, responses=[], **kwargs
-    ) -> str:
-        # Use fallback, if language is not provided
-        if not language in languages:
-            language = default_lang
-
-        if message:
-            responses = []
-
-            prompt = prompts[language]["question_prompt"].format(message)
-        else:
-            prompt = prompts[language]["continuation_prompt"].format(
-                " ".join(responses)
-            )
-
-        response_lines = text_generator.generate(prompt, max_new_tokens=128, **kwargs)[
-            len(prompt) : :
-        ].split("\n")
-        response_lines = [line.strip() for line in response_lines if line]
-        if not len(response_lines):
-            return "..."
-        response = response_lines[0]
-        responses.append(response)
-
-        sentences = sentence_splitter.split(response)
-        sentence = sentences[random.randint(0, len(sentences) - 1)]
-        return sentence, responses
-
-    def find_language(languages: list[str]) -> str:
-        return Counter(languages).most_common(1)[0][0]
-
     try:
         if huggingface_token := os.environ.get("HF_TOKEN"):
             login(huggingface_token)
@@ -293,6 +261,39 @@ def generate_responses(
                     device="cpu",
                 )
 
+        def generate_next_response(
+            language: str, message: str | None = None, previous_responses=[], **kwargs
+        ) -> str:
+            # Use fallback, if language is not provided
+            if not language in languages:
+                language = default_lang
+
+            if message:
+                previous_responses = []
+
+                prompt = prompts[language]["question_prompt"].format(message)
+            else:
+                prompt = prompts[language]["continuation_prompt"].format(
+                    " ".join(previous_responses)
+                )
+
+            full_response = text_generator.generate(
+                prompt, max_new_tokens=128, **kwargs
+            )[len(prompt) : :].strip()
+            if not len(full_response):
+                return "..."
+
+            response = full_response.splitlines()[0]
+
+            previous_responses.append(response)
+
+            sentences = sentence_splitter.split(response)
+            selected_sentence = sentences[random.randint(0, len(sentences) - 1)]
+            return selected_sentence, previous_responses
+
+        def find_language(languages: list[str]) -> str:
+            return Counter(languages).most_common(1)[0][0]
+
         models_ready.set()
 
         seed = 0
@@ -324,28 +325,33 @@ def generate_responses(
                 seed = receive_seed.recv()
                 text_generator.set_seed(seed)
 
-            text, responses = next_response(current_lang, message, **gpt_kwargs)
-            # Generate responses while no new message has been received and users are connected
+            # Generate responses until new message arrives
+            responses: list[str] = []
             while not receive_message.poll():
+                # Generate next response
+                text, responses = generate_next_response(
+                    current_lang, message if not responses else None, responses
+                )
+
+                # Translate if necessary
                 if translate and translated_lang != default_lang:
                     print(
                         f"Translating response: '{text}' (target: {translated_lang})..."
                     )
                     text = translator.translate(text, default_lang, translated_lang)
 
-                print(f"Voicing response: '{text}' (seed: {seed})...")
-
-                speech_data = tts.generate(voice, text, **bark_kwargs)
-
                 # Exit early if new message has been received
                 if receive_message.poll():
                     break
 
-                send_response.send(speech_data)
+                print(f"Voicing response: '{text}' (seed: {seed})")
 
-                text, responses = next_response(
-                    current_lang, message, responses, **gpt_kwargs
-                )
+                # Generate speech
+                speech_data = tts.generate(voice, text, **bark_kwargs)
+
+                # Send response if no new message
+                if not receive_message.poll():
+                    send_response.send(speech_data)
     except KeyboardInterrupt:
         pass
 

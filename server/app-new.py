@@ -21,8 +21,11 @@ from dotenv import load_dotenv
 import multiprocessing as mp
 from threading import Thread
 import yaml
+from collections import Counter
 
-from typing import Optional, List, Dict, Any, Tuple
+from huggingface_hub import login
+
+from typing import Optional, Any
 from multiprocessing.connection import Connection
 from multiprocessing.synchronize import Event
 
@@ -67,8 +70,9 @@ class SeanceServer:
         """Configure SocketIO event handlers."""
 
         @self.sio.event
-        def connect(sid: str, _: Dict[str, Any], auth: Dict[str, str]) -> None:
+        def connect(sid: str, _: dict[str, Any], auth: dict[str, str]) -> None:
             """Handle new client connections with authentication."""
+
             if not auth["password"] == os.getenv("PASSWORD"):
                 raise ConnectionRefusedError("Authentication failed.")
             if len(self.users):
@@ -81,6 +85,7 @@ class SeanceServer:
         @self.sio.event
         def disconnect(sid: str) -> None:
             """Handle client disconnections."""
+
             if sid in self.users:
                 self.users.remove(sid)
             if not len(self.users):
@@ -90,6 +95,7 @@ class SeanceServer:
         @self.sio.event
         def contact(_: str, data: bytes) -> None:
             """Handle incoming voice messages."""
+
             # Save received audio
             os.makedirs("temp", exist_ok=True)
             message_path = os.path.join("temp", "message.wav")
@@ -107,7 +113,7 @@ class SeanceServer:
                 )
 
         @self.sio.event
-        def seed(_: str, data: Dict[str, int]) -> None:
+        def seed(_: str, data: dict[str, int]) -> None:
             """Handle random seed updates for response generation."""
             print(f"Received seed: {data['seed']}.")
             self.seed_pipe[1].send(data["seed"])
@@ -118,7 +124,7 @@ class SeanceServer:
 
         while not self.exiting.is_set():
             response = self.response_pipe[0].recv()
-            mp3_data = convert_audio_to_mp3(response, sample_rate=24000)
+            mp3_data = convert_audio_to_mp3(response, sample_rate=24_000)
             event = "first_response" if self.first_response else "response"
             self.sio.emit(event, mp3_data.read())
             self.first_response = False
@@ -128,46 +134,156 @@ class SeanceServer:
 class AIProcessor:
     """Handles AI model loading and inference in a separate process."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize AI processor with configuration.
 
         Args:
             config: Dictionary containing model configurations and parameters
         """
+
         self.config = config
-        self.languages = config["languages"]
-        self.default_lang = config["default_language"]
-        self.translate = config["translate"]
+        self.languages: list[str] = self.config.pop("languages")
+        self.default_lang: str = self.config.pop("default_language")
+        self.translate: bool = self.config.pop("translate")
 
         # Load prompts
-        with open(config["prompts"]) as f:
+        with open(config.pop("prompts")) as f:
             self.prompts = yaml.safe_load(f)
+
+        # Validate translation config parameters
+        if self.default_lang not in self.languages:
+            raise RuntimeError(
+                f"Default language not present in languages. Please change the languages."
+            )
+        if self.default_lang not in self.prompts.keys():
+            raise RuntimeError(
+                f"No prompts for default language '{self.default_lang}' were provided"
+            )
+        if not self.translate:
+            for lang in self.languages:
+                if lang not in self.prompts.keys():
+                    raise RuntimeError(
+                        f"No prompts for language '{lang}' were provided"
+                    )
 
         # Load AI models
         self.load_models()
 
+    def filter_config_by_prefix(self, prefix, remove_none=False):
+        """
+        Filters keys from the config that match the given prefix and removes the prefix from the keys.
+
+        :param prefix: The prefix to match and remove.
+        :param remove_none: If True, filter out keys with None values.
+        :return: A new dictionary with filtered and renamed keys.
+        """
+        filtered_config = {
+            key[len(prefix) :]: value
+            for key, value in self.config.items()
+            if key.startswith(prefix)
+        }
+
+        if remove_none:
+            filtered_config = {
+                key: value
+                for key, value in filtered_config.items()
+                if value is not None
+            }
+
+        return filtered_config
+
     def load_models(self):
         """Load all required AI models."""
+
         from stt import Whisper
         from tts import VoiceCloner, Bark
-        from text_generator import TextGenerator
-        from sentence_splitter import SentenceSplitter
-
-        self.stt = Whisper(
-            self.config["whisper_model"], multilang=len(self.languages) > 1
+        from text_generator import (
+            TextGenerator,
+            TextGeneratorCTranslate,
+            TextGeneratorAirLLM,
         )
+        from sentence_splitter import SentenceSplitter
+        from translator import Opus, OpusCTranslate2
+
+        # Get config for each model
+        whisper_config = self.filter_config_by_prefix("whisper_", remove_none=True)
+        bark_config = self.filter_config_by_prefix("bark_", remove_none=True)
+        gpt_config = self.filter_config_by_prefix("gpt_", remove_none=True)
+        wtpsplit_config = self.filter_config_by_prefix("wtpsplit_", remove_none=True)
+        opus_config = self.filter_config_by_prefix("opus_", remove_none=True)
+
+        # Log into huggingface in case access limited models need to be fetched
+        if huggingface_token := os.environ.get("HF_TOKEN"):
+            login(huggingface_token)
+
+        # Setup whisper text to speech
+        self.stt = Whisper(
+            whisper_config.pop("model"),
+            multilang=len(self.languages) > 1,
+            dtype=whisper_config.pop("dtype"),
+        )
+        # Setup voice cloning for bark
         self.voice_cloner = VoiceCloner()
-        self.tts = Bark(self.config["bark_model"])
-        self.text_generator = TextGenerator(self.config["gpt_model"])
-        self.sentence_splitter = SentenceSplitter(self.config["wtpsplit_model"])
+        self.tts = Bark(
+            bark_config.pop("model"),
+            dtype=bark_config.pop("dtype"),
+            use_better_transformer=bark_config.pop("use_better_transformer"),
+            cpu_offload=bark_config.pop("cpu_offload"),
+        )
+        self.bark_config = bark_config
+        # Setup text generation
+        if "ctranslate_dir" in gpt_config.keys():
+            self.text_generator = TextGeneratorCTranslate(
+                gpt_config.pop("model"),
+                ctranslate_dir=gpt_config.pop("ctranslate_dir"),
+                dtype=gpt_config.pop("dtype"),
+                activation_scales=gpt_config.pop("activation_scales", None),
+            )
+            for key in ["device_map", "compression"]:
+                gpt_config.pop(key, None)
+        elif gpt_config.pop("airllm"):
+            self.text_generator = TextGeneratorAirLLM(
+                gpt_config.pop("model"),
+                compression=gpt_config.pop("compression"),
+            )
+            for key in ["activation_scales", "device_map", "dtype"]:
+                gpt_config.pop(key, None)
+        else:
+            self.text_generator = TextGenerator(
+                gpt_config.pop("model"),
+                dtype=gpt_config.pop("dtype"),
+                device_map=gpt_config.pop("device_map", None),
+            )
+            for key in ["activation_scales", "compression"]:
+                gpt_config.pop(key, None)
+        self.gpt_config = gpt_config
+        # Setup sentence splitting
+        self.sentence_splitter = SentenceSplitter(wtpsplit_config.pop("model"), "cpu")
+        # Only load opus translation models if translation is enabled
+        if self.translate:
+            if "ctranslate_dir" in opus_config.keys():
+                self.translator = OpusCTranslate2(
+                    opus_config.pop("model_names_base"),
+                    self.languages,
+                    ctranslate_dir=opus_config.pop("ctranslate_dir"),
+                    dtype=opus_config.pop("dtype"),
+                    device="cpu",
+                )
+            else:
+                self.translator = Opus(
+                    opus_config.pop("model_names_base"),
+                    self.languages,
+                    dtype=opus_config.pop("dtype"),
+                    device="cpu",
+                )
 
     def generate_next_response(
         self,
         language: str,
         message: Optional[str] = None,
-        previous_responses: List[str] = [],
-    ) -> Tuple[str, List[str]]:
+        previous_responses: list[str] = [],
+    ) -> tuple[str, list[str]]:
         """
         Generate the next response in the conversation.
 
@@ -194,17 +310,24 @@ class AIProcessor:
 
         # Generate response
         full_response = self.text_generator.generate(
-            prompt, max_new_tokens=128, **self.config.get("gpt_kwargs", {})
+            prompt, max_new_tokens=128, **self.gpt_config
         )[len(prompt) :].strip()
+        if not len(full_response):
+            return "..."
+
+        response = full_response.splitlines()[0]
+
+        # Update response history
+        previous_responses.append(response)
 
         # Split into sentences and select one
         sentences = self.sentence_splitter.split(full_response)
         selected_sentence = sentences[random.randint(0, len(sentences) - 1)]
 
-        # Update response history
-        previous_responses.append(full_response)
-
         return selected_sentence, previous_responses
+
+    def find_language(self, languages: list[str]) -> str:
+        return Counter(languages).most_common(1)[0][0]
 
     def run(
         self,
@@ -234,8 +357,22 @@ class AIProcessor:
 
             # Transcribe audio
             message, detected_langs = self.stt.transcribe_audio(message_path)
-            current_lang = detected_langs[0] if detected_langs else self.default_lang
+            current_lang = (
+                self.find_language(detected_langs)
+                if detected_langs
+                else self.default_lang
+            )
             print(f"Received message: '{message}' in language: {current_lang}")
+
+            # Translate if necessary
+            translated_lang = self.default_lang
+            if self.translate and current_lang != self.default_lang:
+                translated_lang = current_lang
+                current_lang = self.default_lang
+                message = self.translator.translate(
+                    message, translated_lang, self.default_lang
+                )
+                print(f"Translated message to: '{message}'.")
 
             # Clone voice
             voice = self.voice_cloner.clone(message_path)
@@ -246,34 +383,98 @@ class AIProcessor:
                 self.text_generator.set_seed(current_seed)
 
             # Generate responses until new message arrives
-            responses: List[str] = []
+            responses: list[str] = []
             while not receive_message.poll():
                 # Generate next response
                 text, responses = self.generate_next_response(
                     current_lang, message if not responses else None, responses
                 )
 
+                # Translate if necessary
+                if self.translate and translated_lang != self.default_lang:
+                    print(
+                        f"Translating response: '{text}' (target: {translated_lang})..."
+                    )
+                    text = self.translator.translate(
+                        text, self.default_lang, translated_lang
+                    )
+
+                # Exit early if new message has been received
+                if receive_message.poll():
+                    break
+
                 print(f"Voicing response: '{text}' (seed: {current_seed})")
 
                 # Generate speech
-                speech_data = self.tts.generate(
-                    voice, text, **self.config.get("bark_kwargs", {})
-                )
+                speech_data = self.tts.generate(voice, text, **self.bark_config)
 
                 # Send response if no new message
                 if not receive_message.poll():
                     send_response.send(speech_data)
 
 
+def validate_command_line_arguments(config) -> None:
+    """Validate all command line arguments coming through click."""
+
+    if config["gpt_ctranslate_dir"] and config["gpt_airllm"]:
+        raise click.ClickException(
+            "'--gpt_ctranslate_dir' and '--gpt_airllm' are mutually exclusive!"
+        )
+    if config["gpt_activation_scales"] and not config["gpt_ctranslate_dir"]:
+        print(
+            "warning: Setting '--gpt_activation_scales' without setting '--gpt_ctranslate_dir' has no effect."
+        )
+    if config["gpt_compression"] and not config["gpt_airllm"]:
+        print(
+            "warning: Setting '--gpt_compression' without setting '--gpt_airllm' has no effect."
+        )
+
+
+def parse_comma_list(s: list | str) -> list[str]:
+    if isinstance(s, list):
+        return s
+    return [e.strip() for e in s.split(",")]
+
+
+# fmt: off
 @click.command()
-@click.option("--whisper_model", required=True, help="Whisper model name")
-@click.option("--gpt_model", required=True, help="LLM model name")
-@click.option("--bark_model", required=True, help="Bark model name")
-@click.option("--wtpsplit_model", required=True, help="Sentence splitting model")
-@click.option("--languages", default=["english"], help="Supported languages")
-@click.option("--default_language", default="english", help="Default language")
-@click.option("--translate", is_flag=True, help="Enable translation")
-@click.argument("prompts", type=click.Path(exists=True))
+# Whisper options
+@click.option("--whisper_model", type=str, required=True,                              help="Whisper model for speech transcription")
+# @click.option("--whisper_ctranslate_dir", type=click.Path(file_okay=False),            help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--whisper_dtype", type=str, default="default",                          help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
+# Text generation options
+@click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
+@click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
+@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2, mutually exclusive with airLLM)")
+@click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False), help="Path to the activation scales for converting the model to CTranslate2")
+@click.option("--gpt_airllm", is_flag=True, default=False,                             help="Use model with airLLM (mutually exclusive with CTranslate2)")
+@click.option("--gpt_compression", type=click.Choice(["4bit", "8bit"]), default=None,  help="AirLLM compression")
+@click.option("--gpt_temperature", type=click.FloatRange(0.0),                         help="Value used to modulate the next token probabilities")
+@click.option("--gpt_top_k", type=click.IntRange(0),                                   help="Nmber of highest probability vocabulary tokens to keep for top-k-filtering")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0),                               help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
+@click.option("--gpt_do_sample", is_flag=True, default=None,                           help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
+@click.option("--gpt_dtype", type=str, default="default",                              help="Torch dtype to use for the model (transformers: default, float32, bfloat16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
+# Text to speech options
+@click.option("--bark_model", type=str, required=True,                                 help="Bark model for text to speech")
+@click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),               help="Temperature for the bark generation (semantic/text)")
+@click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),                 help="Temperature for the bark generation (course waveform)")
+@click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5,      help="Temperature for the bark generation (fine waveform)")
+@click.option("--bark_use_better_transformer", is_flag=True, default=False,            help="Optimize bark with BetterTransformer (shorter inference time)")
+@click.option("--bark_dtype", type=str, default="default",                             help="Torch dtype to use for the model (default, float32, float16)")
+@click.option("--bark_cpu_offload", is_flag=True, default=False,                       help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
+# Sentence splitting options
+@click.option("--wtpsplit_model", type=str, required=True,                             help="Wtpsplit model for sentence splitting")
+# Language options
+@click.option("--languages", type=parse_comma_list, default=["english"],               help="Languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
+@click.option("--default_language", type=str, default="english",                       help="Fallback language in case the detected language is not provided")
+# Translation
+@click.option("--translate", is_flag=True, default=False,                              help="Always translate to and from the default language instead of using a multi language model")
+@click.option("--opus_model_names_base", type=str,                                     help="String to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
+@click.option("--opus_ctranslate_dir", type=click.Path(file_okay=False),               help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--opus_dtype", type=str, default="default",                             help="Torch dtype to use for the model (transformers: default, float32; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
+# Prompts
+@click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
+# fmt: on
 def main(**config):
     """
     Start the Seance application.
@@ -282,6 +483,9 @@ def main(**config):
     connecting them through pipes for message passing. The AI processor runs
     continuously, generating responses until interrupted by new messages.
     """
+
+    validate_command_line_arguments(config)
+
     server = SeanceServer()
 
     # Start AI processor in separate process

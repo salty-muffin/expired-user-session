@@ -1,4 +1,4 @@
-# filter out deprication warnings
+# Filter out deprication warnings
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -44,7 +44,7 @@ class Opus:
             f"Using {device} with {dtype} for Opus text translation using single models with '{model_names_base}'."
         )
 
-        # generate all all possible language pairs
+        # Generate all all possible language pairs
         language_pairs = list(
             itertools.combinations([mappings[lang] for lang in languages], 2)
         )
@@ -53,7 +53,7 @@ class Opus:
             self._language_pairs.append(pair)
             self._language_pairs.append(tuple(reversed(pair)))
 
-        # load all models
+        # Load all models
         self._pipes = {}
         for pair in self._language_pairs:
             self._pipes["{}-{}".format(*pair)] = pipeline(
@@ -101,7 +101,7 @@ class OpusCTranslate2(Opus):
             f"Using {device} with {dtype} for Opus text translation using single models (CTranslate2)."
         )
 
-        # generate all all possible language pairs
+        # Generate all all possible language pairs
         language_pairs = list(
             itertools.combinations([mappings[lang] for lang in languages], 2)
         )
@@ -110,10 +110,10 @@ class OpusCTranslate2(Opus):
             self._language_pairs.append(pair)
             self._language_pairs.append(tuple(reversed(pair)))
 
-        # load all models
+        # Load all models
         self._pipes = {}
         for pair in self._language_pairs:
-            # convert model, if it hasn't been converted yet
+            # Convert model, if it hasn't been converted yet
             ctranslate_sub_dir = os.path.join(ctranslate_dir, "{}-{}".format(*pair))
             if dtype not in ["default", "auto"]:
                 ctranslate_sub_dir += f"--{dtype}"

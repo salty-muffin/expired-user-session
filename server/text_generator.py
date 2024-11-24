@@ -1,4 +1,4 @@
-# filter out deprication warnings
+# Filter out deprication warnings
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -124,7 +124,7 @@ class TextGeneratorCTranslate(TextGenerator):
             f"Using {device} with {dtype} for text generation (CTranslate2) with '{model_name}'."
         )
 
-        # convert model, if it hasn't been converted yet
+        # Convert model, if it hasn't been converted yet
         if dtype not in ["default", "auto"]:
             ctranslate_dir += f"--{dtype}"
         command = [
@@ -142,15 +142,15 @@ class TextGeneratorCTranslate(TextGenerator):
             command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
-        # if "/opt" in model_name:
+        # If "/opt" in model_name:
         #     self._tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-        # else:
+        # Else:
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         self._generator = ctranslate2.Generator(ctranslate_dir, device=device)
 
     def generate(self, prompt: str, **kwargs) -> str:
-        # set ctranslate2 kwargs
+        # Set ctranslate2 kwargs
         ct_kwargs = {}
         if "max_length" in kwargs.keys():
             ct_kwargs["max_length"] = kwargs["max_length"]

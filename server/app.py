@@ -13,12 +13,12 @@ from threading import Thread
 
 from audio import convert_audio_to_mp3
 
-# load and set environment variables
+# Load and set environment variables
 load_dotenv()
 os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
 os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), "models")
 
-# socketio
+# Socketio
 sio = socketio.Server(ping_timeout=60)
 app = socketio.WSGIApp(
     sio,
@@ -29,10 +29,10 @@ app = socketio.WSGIApp(
     },
 )
 
-# socketio variables
+# Socketio variables
 users = set()
 
-# multiprocessing communication objects
+# Multiprocessing communication objects
 receive_message, send_message = mp.Pipe()
 receive_response, send_response = mp.Pipe()
 receive_seed, send_seed = mp.Pipe()
@@ -40,10 +40,10 @@ users_connected = mp.Event()
 exiting = mp.Event()
 models_ready = mp.Event()
 
-# constants
+# Constants
 SAMPLE_RATE = 24_000
 
-# variables
+# Variables
 background_thread: Thread | None = None
 first_response = True
 
@@ -81,17 +81,17 @@ def contact(_: str, data: bytes) -> None:
 
     global first_response, background_thread
 
-    # write the sound data to disk as file
+    # Write the sound data to disk as file
     os.makedirs("temp", exist_ok=True)
     message_path = os.path.join("temp", "message.wav")
     with open(message_path, "wb") as f:
         f.write(data)
 
-    # send over the file path
+    # Send over the file path
     first_response = True
     send_message.send(message_path)
 
-    # start thread to stream responses
+    # Start thread to stream responses
     if not background_thread:
         background_thread = sio.start_background_task(target=send_responses)
 
@@ -142,13 +142,13 @@ def generate_responses(
     from sentence_splitter import SentenceSplitter
     from translator import Opus, OpusCTranslate2
 
-    # get languages & prompts
+    # Get languages & prompts
     languages = kwargs.pop("languages")
     default_lang = kwargs.pop("default_language")
     with open(kwargs.pop("prompts")) as file:
         prompts: dict = yaml.safe_load(file)
 
-    # check if translation is enabled
+    # Check if translation is enabled
     translate = kwargs.pop("translate")
     if translate and len(languages) <= 1:
         translate = False
@@ -156,7 +156,7 @@ def generate_responses(
             "Warning: 'translate' flag is set but only one language is given. Nothing will be translated."
         )
 
-    # check if prompts for all languages exist
+    # Check if prompts for all languages exist
     if default_lang not in languages:
         raise RuntimeError(
             f"Default language not present in languages. Please change the languages."
@@ -194,7 +194,7 @@ def generate_responses(
 
         return filtered_kwargs
 
-    # get kwargs for each model
+    # Get kwargs for each model
     whisper_kwargs = filter_kwargs_by_prefix("whisper_", kwargs, remove_none=True)
     gpt_kwargs = filter_kwargs_by_prefix("gpt_", kwargs, remove_none=True)
     bark_kwargs = filter_kwargs_by_prefix("bark_", kwargs, remove_none=True)
@@ -204,7 +204,7 @@ def generate_responses(
     def next_response(
         language: str, message: str | None = None, responses=[], **kwargs
     ) -> str:
-        # use fallback, if language is not provided
+        # Use fallback, if language is not provided
         if not language in languages:
             language = default_lang
 
@@ -275,7 +275,7 @@ def generate_responses(
             gpt_kwargs.pop("activation_scales", None)
             gpt_kwargs.pop("compression", None)
         sentence_splitter = SentenceSplitter(wtpsplit_kwargs.pop("model"), "cpu")
-        # only load opus translation models if translation is enabled
+        # Only load opus translation models if translation is enabled
         if translate:
             if "ctranslate_dir" in opus_kwargs.keys():
                 translator = OpusCTranslate2(
@@ -298,17 +298,17 @@ def generate_responses(
         seed = 0
 
         while not exiting.is_set():
-            # wait until a user connects
+            # Wait until a user connects
             users_connected.wait()
 
-            # get the path to the message audio
+            # Get the path to the message audio
             message_path = receive_message.recv()
 
-            # transcribe message
+            # Transcribe message
             message, langs = stt.transcribe_audio(message_path)
             current_lang = find_language(langs) if langs else default_lang
             print(f"Received message: '{message}' in language: {current_lang}.")
-            # translate if it should
+            # Translate if it should
             translated_lang = default_lang
             if translate and current_lang != default_lang:
                 translated_lang = current_lang
@@ -316,16 +316,16 @@ def generate_responses(
                 message = translator.translate(message, translated_lang, default_lang)
                 print(f"Translated message to: '{message}'.")
 
-            # clone voice
+            # Clone voice
             voice = cloner.clone(message_path)
 
-            # get seed
+            # Get seed
             if receive_seed.poll():
                 seed = receive_seed.recv()
                 text_generator.set_seed(seed)
 
             text, responses = next_response(current_lang, message, **gpt_kwargs)
-            # generate responses while no new message has been received and users are connected
+            # Generate responses while no new message has been received and users are connected
             while not receive_message.poll():
                 if translate and translated_lang != default_lang:
                     print(
@@ -337,7 +337,7 @@ def generate_responses(
 
                 speech_data = tts.generate(voice, text, **bark_kwargs)
 
-                # exit early if new message has been received
+                # Exit early if new message has been received
                 if receive_message.poll():
                     break
 
@@ -358,11 +358,11 @@ def parse_comma_list(s: list | str) -> list[str]:
 
 # fmt: off
 @click.command()
-# whisper options
+# Whisper options
 @click.option("--whisper_model", type=str, required=True,                              help="Whisper model for speech transcription")
 # @click.option("--whisper_ctranslate_dir", type=click.Path(file_okay=False),            help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
 @click.option("--whisper_dtype", type=str, default="default",                          help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
-# text generation options
+# Text generation options
 @click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
 @click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
 @click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2, mutually exclusive with airLLM)")
@@ -374,7 +374,7 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.option("--gpt_top_p", type=click.FloatRange(0.0),                               help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
 @click.option("--gpt_do_sample", is_flag=True, default=None,                           help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
 @click.option("--gpt_dtype", type=str, default="default",                              help="Torch dtype to use for the model (transformers: default, float32, bfloat16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
-# text to speech options
+# Text to speech options
 @click.option("--bark_model", type=str, required=True,                                 help="Bark model for text to speech")
 @click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),               help="Temperature for the bark generation (semantic/text)")
 @click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),                 help="Temperature for the bark generation (course waveform)")
@@ -382,21 +382,21 @@ def parse_comma_list(s: list | str) -> list[str]:
 @click.option("--bark_use_better_transformer", is_flag=True, default=False,            help="Optimize bark with BetterTransformer (shorter inference time)")
 @click.option("--bark_dtype", type=str, default="default",                             help="Torch dtype to use for the model (default, float32, float16)")
 @click.option("--bark_cpu_offload", is_flag=True, default=False,                       help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
-# sentence splitting options
+# Sentence splitting options
 @click.option("--wtpsplit_model", type=str, required=True,                             help="Wtpsplit model for sentence splitting")
-# language options
+# Language options
 @click.option("--languages", type=parse_comma_list, default=["english"],               help="Languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
 @click.option("--default_language", type=str, default="english",                       help="Fallback language in case the detected language is not provided")
-# translation
+# Translation
 @click.option("--translate", is_flag=True, default=False,                              help="Always translate to and from the default language instead of using a multi language model")
 @click.option("--opus_model_names_base", type=str,                                     help="String to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
 @click.option("--opus_ctranslate_dir", type=click.Path(file_okay=False),               help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
 @click.option("--opus_dtype", type=str, default="default",                             help="Torch dtype to use for the model (transformers: default, float32; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
-# prompts
+# Prompts
 @click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def respond(**kwarks) -> None:
-    # check click options
+    # Check click options
     if kwarks["gpt_ctranslate_dir"] and kwarks["gpt_airllm"]:
         raise click.ClickException(
             "'--gpt_ctranslate_dir' and '--gpt_airllm' are mutually exclusive!"
@@ -410,7 +410,7 @@ def respond(**kwarks) -> None:
             "warning: Setting '--gpt_compression' without setting '--gpt_airllm' has no effect."
         )
 
-    # start response process
+    # Start response process
     response_process = mp.Process(
         target=generate_responses,
         args=(
@@ -425,10 +425,10 @@ def respond(**kwarks) -> None:
     )
     response_process.start()
 
-    # wait until the models are loaded
+    # Wait until the models are loaded
     models_ready.wait()
 
-    # start socket connection
+    # Start socket connection
     try:
         eventlet.wsgi.server(eventlet.listen(("", 5000)), app)
     except KeyboardInterrupt:

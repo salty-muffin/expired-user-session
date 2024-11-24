@@ -1,4 +1,4 @@
-# filter out deprication warnings
+# Filter out deprication warnings
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -57,7 +57,7 @@ class VoiceCloner:
         audio_file: str | io.BytesIO,
         voice_outpath=os.path.join("temp", "echo.npz"),
     ) -> str:
-        # load and pre-process the audio waveform
+        # Load and pre-process the audio waveform
         wav, sr = torchaudio.load(audio_file)
 
         wav = convert_audio(
@@ -70,16 +70,16 @@ class VoiceCloner:
         )
         semantic_tokens = self._tokenizer.get_token(semantic_vectors)
 
-        # extract discrete codes from EnCodec
+        # Extract discrete codes from EnCodec
         with torch.no_grad():
             encoded_frames = self._encodec_model.encode(wav.unsqueeze(0))
         codes = torch.cat(
             [encoded[0] for encoded in encoded_frames], dim=-1
         ).squeeze()  # [n_q, T]
 
-        # move codes to cpu
+        # Move codes to cpu
         codes = codes.cpu().numpy()
-        # move semantic tokens to cpu
+        # Move semantic tokens to cpu
         semantic_tokens = semantic_tokens.cpu().numpy()
 
         np.savez(
@@ -244,7 +244,7 @@ class Bark:
         audio_array = self._model.codec_decode(fine_output)
 
         if getattr(self._model, "codec_model_hook", None) is not None:
-            # offload codec_model to CPU
+            # Offload codec_model to CPU
             self._model.codec_model_hook.offload()
 
         audio_array = audio_array.cpu().numpy().squeeze()

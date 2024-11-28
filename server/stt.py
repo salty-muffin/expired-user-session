@@ -1,4 +1,4 @@
-# filter out deprication warnings
+# Filter out deprication warnings
 import warnings
 
 warnings.filterwarnings("ignore")

@@ -86,7 +86,7 @@ def test(
     if huggingface_token := os.environ.get("HF_TOKEN"):
         login(huggingface_token)
 
-    # get prompts
+    # Get prompts
     with open("server/prompts.yml") as file:
         prompts = yaml.safe_load(file)
 

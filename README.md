@@ -21,7 +21,7 @@ an ai version of the classic spirit box. can be used for post-internet transcomm
 
 ## notes
 
-to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales should be downloaded here: https://huggingface.co/mit-han-lab/smoothquant-scales/tree/main. For more information see here: https://opennmt.net/CTranslate2/guides/transformers.html#opt. the mouse cursor for the dead profiles page is from the GNOME adwaita icon theme: https://gitlab.gnome.org/GNOME/adwaita-icon-theme
+to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales should be downloaded here: https://huggingface.co/mit-han-lab/smoothquant-scales/tree/main. For more information see here: https://opennmt.net/CTranslate2/guides/transformers.html#opt. the mouse cursors for the dead profiles page is from the GNOME adwaita icon theme: https://gitlab.gnome.org/GNOME/adwaita-icon-theme
 
 ## models
 

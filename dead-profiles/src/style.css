@@ -19,3 +19,23 @@ body {
 	width: 100vw;
 	flex-grow: 1;
 }
+
+#cursor {
+	position: absolute;
+	width: 24px;
+	height: 24px;
+
+	background-repeat: no-repeat;
+	background-position: center;
+
+	display: none;
+}
+
+#cursor.default {
+	display: block;
+	background-image: url('/cursors/default.png');
+}
+#cursor.pointer {
+	display: block;
+	background-image: url('/cursors/pointer.png');
+}

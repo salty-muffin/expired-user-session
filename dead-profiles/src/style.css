@@ -6,8 +6,6 @@ body {
 body {
 	background-color: white;
 	color: black;
-
-	font-family: 'Ubuntu Mono', monospace;
 }
 
 #container {
@@ -17,24 +15,7 @@ body {
 	height: 100vh;
 }
 
-h1 {
-	margin: 0.5em 2em;
-	font-size: 2.5rem;
-}
-
 #frame {
 	width: 100vw;
 	flex-grow: 1;
-}
-
-#cover {
-	position: absolute;
-	inset: 0;
-	background-color: black;
-	opacity: 0;
-
-	pointer-events: none;
-}
-#cover.fade {
-	opacity: 1;
 }

@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@fontsource/ubuntu-mono": "^5.1.0",
+    "@modyfi/vite-plugin-yaml": "^1.1.0",
     "@types/node": "^22.5.4",
     "prettier": "^3.3.3",
     "typescript": "^5.5.3",

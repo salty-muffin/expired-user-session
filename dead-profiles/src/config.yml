@@ -1,0 +1,3 @@
+maxDisplayTime: { min: 8000, max: 20000 }
+scrollSegmentTime: { min: 6000, max: 10000 }
+mouseMoveSegmentTime: { min: 6000, max: 10000 }

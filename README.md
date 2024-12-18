@@ -47,7 +47,7 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
   - [x] implement needed parameters for each model while retesting for the original one at each step
 - [ ] work over prompts and text generation method
   - [ ] test again with removed spaces (server/prompts2.yml)
-- [ ] make dead-profiles page prettier.
-  - [ ] simulate natural scrolling (scroll, stop, scroll stop). maybe with a (ghostly) twist. Implement with https://github.com/salty-muffin/browser-mouse-recorder
+- [x] make dead-profiles page prettier.
+  - [x] simulate natural scrolling (scroll, stop, scroll stop). maybe with a (ghostly) twist. Implement with https://github.com/salty-muffin/browser-mouse-recorder
   - [ ] alternate format for showing that they are dead profiles?
 - [ ] backup models, etc. (especially if using original bark).

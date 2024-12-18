@@ -157,6 +157,8 @@ let bodyDimensions = { x: 0, y: 0 };
 let first = true;
 const loadNextFile = (files: string[]) => {
 	if (frame) {
+		scrollPosition = { x: 0, y: 0 };
+
 		frame.src = `/profiles/${files[currentIndex]}`;
 		currentIndex++;
 		if (currentIndex >= paths.length) currentIndex = 0;
@@ -178,7 +180,7 @@ const loadNextFile = (files: string[]) => {
 	}
 
 	// Load next page after a random time
-	// setTimeout(() => loadNextFile(files), getRandomInt(config.maxDisplayTime));
+	setTimeout(() => loadNextFile(files), getRandomInt(config.maxDisplayTime));
 };
 
 if (paths.length > 0) {

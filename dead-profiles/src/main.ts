@@ -21,17 +21,38 @@ const getRandomInt = (attribute: { min: number; max: number }) => {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
+const checkProbability = (chance: number) => {
+	chance = Math.min(1 - Number.EPSILON, Math.max(0, chance));
+	return Math.random() < chance;
+};
+
 interface MouseData {
 	x: number;
 	y: number;
 	t: number;
 }
 
-function splitMouseData(data: MouseData[], range: Range): MouseData[][] {
+const shuffleArray = (array: any[]) => {
+	return array
+		.map((value) => ({ value, sort: Math.random() }))
+		.sort((a, b) => a.sort - b.sort)
+		.map(({ value }) => value);
+};
+
+const splitMouseData = (
+	data: MouseData[],
+	range: Range,
+	shuffle = false,
+	invertSegmentChance = 0,
+	noInverseFirstSegment = false
+) => {
 	let result: MouseData[][] = [];
 	let currentSubarray: MouseData[] = [];
 	let currentTimeRange = getRandomInt(range);
 	let baseTime = 0;
+	let invert = noInverseFirstSegment
+		? false
+		: invertSegmentChance && checkProbability(invertSegmentChance);
 
 	for (const element of data) {
 		// Reset the subarray if time exceeds the current time range
@@ -43,8 +64,15 @@ function splitMouseData(data: MouseData[], range: Range): MouseData[][] {
 			baseTime += result.at(-1)?.at(-1)?.t ?? 0;
 			currentSubarray = [];
 			currentTimeRange = getRandomInt(range);
+
+			// Check whether to invert or not
+			invert = Boolean(invertSegmentChance) && checkProbability(invertSegmentChance);
 		}
-		currentSubarray.push({ ...element, t: element.t - baseTime });
+		currentSubarray.push({
+			x: !invert ? element.x : -element.x,
+			y: !invert ? element.y : -element.y,
+			t: element.t - baseTime
+		});
 	}
 
 	// Handle the last subarray
@@ -52,8 +80,15 @@ function splitMouseData(data: MouseData[], range: Range): MouseData[][] {
 		result.push(currentSubarray);
 	}
 
-	return result.filter((dataArray) => dataArray.length);
-}
+	result = result.filter((dataArray) => dataArray.length);
+	if (result.length < 2 || !shuffle) {
+		return result;
+	}
+	if (noInverseFirstSegment) {
+		return [result[0], ...shuffleArray(result.slice(1))];
+	}
+	return shuffleArray(result);
+};
 
 let scrollSegments: MouseData[][] = [];
 let currentScrollSegment: MouseData[] = [];
@@ -62,11 +97,29 @@ let scrollPosition = { x: 0, y: 0 };
 const scroll = (timestamp: number) => {
 	// Remix data if data is empty (first time or used up)
 	if (!scrollSegments.length) {
-		scrollSegments = splitMouseData(scrollData, config.scrollSegmentTime);
+		scrollSegments = splitMouseData(
+			scrollData,
+			config.scrollSegmentTime,
+			config.shuffleScroll,
+			config.invertSegmentChance,
+			config.noInverseFirstSegment
+		);
 	}
+	// Reload next segment if current segment is used up
 	if (!currentScrollSegment.length) {
 		currentScrollSegment = scrollSegments.shift() ?? [];
 		scrollStart = timestamp;
+
+		// & possibly jump a bit on the page
+		if (config.jumpChance && checkProbability(config.jumpChance) && frame?.contentWindow) {
+			scrollPosition.y += getRandomInt(config.jumpPerSegment);
+
+			frame.contentWindow.scrollTo({
+				left: scrollPosition.x,
+				top: scrollPosition.y,
+				behavior: 'instant'
+			});
+		}
 	}
 
 	// Get the last scroll delta for the current timestamp
@@ -121,7 +174,7 @@ let moveStart: number;
 const moveMouse = (timestamp: number) => {
 	// Remix data if data is empty (first time or used up)
 	if (!moveSegments.length) {
-		moveSegments = splitMouseData(moveData, config.mouseMoveSegmentTime);
+		moveSegments = splitMouseData(moveData, config.mouseMoveSegmentTime, config.shuffleMouse);
 	}
 	if (!currentMoveSegment.length) {
 		currentMoveSegment = moveSegments.shift() ?? [];

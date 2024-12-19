@@ -49,5 +49,9 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
   - [ ] test again with removed spaces (server/prompts2.yml)
 - [x] make dead-profiles page prettier.
   - [x] simulate natural scrolling (scroll, stop, scroll stop). maybe with a (ghostly) twist. Implement with https://github.com/salty-muffin/browser-mouse-recorder
-  - [ ] alternate format for showing that they are dead profiles?
+  - [x] test mouse data remixing
+  - [x] alternate format for showing that they are dead profiles?
+  - [ ] find the right settings for dead-profiles/src/config.yml
+    - projection on the ceiling above the mircophone
+    - projection mapped as a grave in between the chairs
 - [ ] backup models, etc. (especially if using original bark).

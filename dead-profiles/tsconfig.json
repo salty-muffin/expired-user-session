@@ -6,7 +6,8 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "types": [
-      "@modyfi/vite-plugin-yaml/modules"
+      "@modyfi/vite-plugin-yaml/modules",
+      "node"
       ],
 
     /* Bundler mode */

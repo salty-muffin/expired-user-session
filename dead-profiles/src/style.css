@@ -6,8 +6,6 @@ body {
 body {
 	background-color: white;
 	color: black;
-
-	font-family: 'Ubuntu Mono', monospace;
 }
 
 #container {
@@ -17,24 +15,27 @@ body {
 	height: 100vh;
 }
 
-h1 {
-	margin: 0.5em 2em;
-	font-size: 2.5rem;
-}
-
 #frame {
 	width: 100vw;
 	flex-grow: 1;
 }
 
-#cover {
+#cursor {
 	position: absolute;
-	inset: 0;
-	background-color: black;
-	opacity: 0;
+	width: 24px;
+	height: 24px;
 
-	pointer-events: none;
+	background-repeat: no-repeat;
+	background-position: center;
+
+	display: none;
 }
-#cover.fade {
-	opacity: 1;
+
+#cursor.default {
+	display: block;
+	background-image: url('/cursors/default.png');
+}
+#cursor.pointer {
+	display: block;
+	background-image: url('/cursors/pointer.png');
 }

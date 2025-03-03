@@ -1,0 +1,10 @@
+maxDisplayTime: { min: 15000, max: 20000 }
+scrollSegmentTime: { min: 15000, max: 25000 }
+mouseMoveSegmentTime: { min: 20000, max: 30000 }
+enableMouse: true
+jumpChance: 0.5
+jumpPerSegment: { min: 300, max: 800 }
+invertSegmentChance: 0.2
+noInverseFirstSegment: true
+shuffleScroll: true
+shuffleMouse: true

@@ -21,7 +21,7 @@ an ai version of the classic spirit box. can be used for post-internet transcomm
 
 ## notes
 
-to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales should be downloaded here: https://huggingface.co/mit-han-lab/smoothquant-scales/tree/main. For more information see here: https://opennmt.net/CTranslate2/guides/transformers.html#opt
+to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales should be downloaded here: https://huggingface.co/mit-han-lab/smoothquant-scales/tree/main. For more information see here: https://opennmt.net/CTranslate2/guides/transformers.html#opt. the mouse cursors for the dead profiles page is from the GNOME adwaita icon theme: https://gitlab.gnome.org/GNOME/adwaita-icon-theme
 
 ## models
 
@@ -47,7 +47,11 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
   - [x] implement needed parameters for each model while retesting for the original one at each step
 - [ ] work over prompts and text generation method
   - [ ] test again with removed spaces (server/prompts2.yml)
-- [ ] make dead-profiles page prettier.
-  - [ ] simulate natural scrolling (scroll, stop, scroll stop). maybe with a (ghostly) twist. Implement with https://github.com/salty-muffin/browser-mouse-recorder
-  - [ ] alternate format for showing that they are dead profiles?
+- [x] make dead-profiles page prettier.
+  - [x] simulate natural scrolling (scroll, stop, scroll stop). maybe with a (ghostly) twist. Implement with https://github.com/salty-muffin/browser-mouse-recorder
+  - [x] test mouse data remixing
+  - [x] alternate format for showing that they are dead profiles?
+  - [ ] find the right settings for dead-profiles/src/config.yml
+    - projection on the ceiling above the mircophone
+    - projection mapped as a grave in between the chairs
 - [ ] backup models, etc. (especially if using original bark).

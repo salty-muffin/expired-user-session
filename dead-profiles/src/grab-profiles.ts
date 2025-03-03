@@ -5,7 +5,7 @@ import path from 'path';
 const pagesDir = path.join(__dirname, '..', 'public', 'profiles');
 
 // Define the output JSON file path
-const outputFile = path.join(__dirname, 'profiles.json');
+const outputFile = path.join(__dirname, '..', '..', 'data', 'profiles.json');
 
 // Function to generate the JSON file with the list of HTML files
 const generateFilesJson = () => {
@@ -20,10 +20,9 @@ const generateFilesJson = () => {
 		const htmlFiles = files.filter((file) => file.endsWith('.html'));
 
 		// Prepare the JSON object
-		const jsonData = {
-			paths: htmlFiles
-		};
-
+		const jsonData = htmlFiles.map((path) => {
+			return { path, character: '' };
+		});
 		// Write the JSON data to the output file
 		fs.writeFile(outputFile, JSON.stringify(jsonData, null, 2), (err) => {
 			if (err) {

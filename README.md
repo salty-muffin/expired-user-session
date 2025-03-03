@@ -1,29 +1,35 @@
-# expired user session
+# Expired User Session
 
-an ai version of the classic spirit box. can be used for post-internet transcommunication (i.e. communication with the spirits of dead users).
+Software for post-internet transcommunication (i.e. communication with the spirits of dead users). This current version is a further development for channeling dead and undead entities from the internet and questioning them about their agency.
 
-## setup
+This is a rough visual layout of the software:
 
-.env file needs to be created inside the server directory. inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with. the caddyfile must be adjusted to the proper domain name. currently docker compose needs to be run as root with `sudo docker compose up`.
+![Software structure](doc/software_structure.png)
 
-## development requirements
+## Setup
 
-- `ffmpeg` with `ffplay` needs to be installed.
-- needs a conda environment (can be installed from environment.yml file).
-- needs node to building the frontend (20.x.x+) ideally installed with `nvm`.
-- for proper operation it needs a cuda comapitble gpu with necessary drivers installed.
-- the backend should be operated behind a reverse proxy (e.g. `caddy`) or tunnel (e.g. `ngrok`).
+A `server/.env` file needs to be created. Inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with. The caddyfile must be adjusted to the proper domain name. Currently docker compose needs to be run as root with `sudo docker compose up`.
 
-## production requirements (docker)
+In this current version, a json of all pages with corrensponding prompt inserts needs to be created by navigating to `dead-profiles` and executing `npm run profiles`. This file needs to be filled with the character descriptions, too.
 
-- nvidia drivers need to be installed on the host machine.
-- for cuda support [nvidia-conatiner-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt) needs to be installed.
+## Development Requirements
 
-## notes
+- `ffmpeg` with `ffplay` needs to be installed
+- needs a conda environment (can be installed from environment.yml file)
+- needs node to building the frontend (20.x.x+) ideally installed with `nvm`
+- For proper operation it needs a cuda comapitble gpu with necessary drivers installed.
+- The backend should be operated behind a reverse proxy (e.g. `caddy`) or tunnel (e.g. `ngrok`).
 
-to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales should be downloaded here: https://huggingface.co/mit-han-lab/smoothquant-scales/tree/main. For more information see here: https://opennmt.net/CTranslate2/guides/transformers.html#opt. the mouse cursors for the dead profiles page is from the GNOME adwaita icon theme: https://gitlab.gnome.org/GNOME/adwaita-icon-theme
+## Production requirements (docker)
 
-## models
+- Nvidia drivers need to be installed on the host machine.
+- For cuda support [nvidia-conatiner-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt) needs to be installed.
+
+## Notes
+
+To qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales should be downloaded here: https://huggingface.co/mit-han-lab/smoothquant-scales/tree/main. For more information see here: https://opennmt.net/CTranslate2/guides/transformers.html#opt. the mouse cursors for the dead profiles page is from the GNOME adwaita icon theme: https://gitlab.gnome.org/GNOME/adwaita-icon-theme
+
+## Models
 
 - [facebook/opt-1.3b](https://huggingface.co/facebook/opt-1.3b): used in the past and reliably unpredictable, but english only.
 - [meta-llama/Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B): multilangue, including german. has to be tested for result quality of connection. can be used in bfloat16
@@ -33,7 +39,7 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 - [bigscience/bloom-1b7](https://huggingface.co/bigscience/bloom-1b7): similar to meta llama, trined on language and code. multilanguage, but no german.
 - [darkshapes/mt0-large](https://huggingface.co/darkshapes/mt0-large): maybe a bloom version that also is able to do german language? also exists in smaller versions.
 
-## to do
+## To do
 
 - [x] restructure (there should be a better structure than "modules/\*").
 - [x] try implementation with [huggingface transformers](https://huggingface.co/docs/transformers/main/en/model_doc/bark) for [additional speedups](https://huggingface.co/blog/optimizing-bark).

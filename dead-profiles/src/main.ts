@@ -1,7 +1,7 @@
 import './style.css';
 
 import config from './config.yml';
-import { paths } from './profiles.json';
+import * as profiles from '../../data/profiles.json';
 import moveData from './mouse-simulation/movedata.json';
 import scrollData from './mouse-simulation/scrolldata.json';
 
@@ -208,13 +208,13 @@ const moveMouse = (timestamp: number) => {
 
 let bodyDimensions = { x: 0, y: 0 };
 let first = true;
-const loadNextFile = (files: string[]) => {
+const loadNextFile = (profiles: { path: string; character: string }[]) => {
 	if (frame) {
 		scrollPosition = { x: 0, y: 0 };
 
-		frame.src = `/profiles/${files[currentIndex]}`;
+		frame.src = `/profiles/${profiles[currentIndex].path}`;
 		currentIndex++;
-		if (currentIndex >= paths.length) currentIndex = 0;
+		if (currentIndex >= profiles.length) currentIndex = 0;
 		frame.onload = () => {
 			if (frame?.contentDocument) {
 				bodyDimensions = {
@@ -233,11 +233,11 @@ const loadNextFile = (files: string[]) => {
 	}
 
 	// Load next page after a random time
-	setTimeout(() => loadNextFile(files), getRandomInt(config.maxDisplayTime));
+	setTimeout(() => loadNextFile(profiles), getRandomInt(config.maxDisplayTime));
 };
 
-if (paths.length > 0) {
-	loadNextFile(paths);
+if (profiles.length > 0) {
+	loadNextFile(profiles);
 } else {
 	console.log('No HTML files found.');
 }

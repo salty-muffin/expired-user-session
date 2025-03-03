@@ -220,7 +220,6 @@ class AIProcessor:
         from text_generator import (
             TextGenerator,
             TextGeneratorCTranslate,
-            TextGeneratorAirLLM,
         )
         from sentence_splitter import SentenceSplitter
         from translator import Opus, OpusCTranslate2
@@ -269,14 +268,6 @@ class AIProcessor:
                 activation_scales=self.gpt_config.pop("activation_scales", None),
             )
             remove_config_items(self.gpt_config, ["device_map", "compression"])
-        elif self.gpt_config.pop("airllm"):
-            self.text_generator = TextGeneratorAirLLM(
-                self.gpt_config.pop("model"),
-                compression=self.gpt_config.pop("compression"),
-            )
-            remove_config_items(
-                self.gpt_config, ["activation_scales", "device_map", "dtype"]
-            )
         else:
             self.text_generator = TextGenerator(
                 self.gpt_config.pop("model"),
@@ -445,17 +436,9 @@ class AIProcessor:
 def validate_command_line_arguments(config) -> None:
     """Validate all command line arguments coming through click."""
 
-    if config["gpt_ctranslate_dir"] and config["gpt_airllm"]:
-        raise click.ClickException(
-            "'--gpt_ctranslate_dir' and '--gpt_airllm' are mutually exclusive!"
-        )
     if config["gpt_activation_scales"] and not config["gpt_ctranslate_dir"]:
         print(
             "warning: Setting '--gpt_activation_scales' without setting '--gpt_ctranslate_dir' has no effect."
-        )
-    if config["gpt_compression"] and not config["gpt_airllm"]:
-        print(
-            "warning: Setting '--gpt_compression' without setting '--gpt_airllm' has no effect."
         )
 
 
@@ -474,10 +457,8 @@ def parse_comma_list(s: list | str) -> list[str]:
 # Text generation options
 @click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
 @click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
-@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2, mutually exclusive with airLLM)")
+@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
 @click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False), help="Path to the activation scales for converting the model to CTranslate2")
-@click.option("--gpt_airllm", is_flag=True, default=False,                             help="Use model with airLLM (mutually exclusive with CTranslate2)")
-@click.option("--gpt_compression", type=click.Choice(["4bit", "8bit"]), default=None,  help="AirLLM compression")
 @click.option("--gpt_temperature", type=click.FloatRange(0.0),                         help="Value used to modulate the next token probabilities")
 @click.option("--gpt_top_k", type=click.IntRange(0),                                   help="Nmber of highest probability vocabulary tokens to keep for top-k-filtering")
 @click.option("--gpt_top_p", type=click.FloatRange(0.0),                               help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")

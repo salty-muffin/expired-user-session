@@ -20,8 +20,6 @@ dependencies:
       - transformers==4.43.4
       - ctranslate2==4.5.0
       - sacremoses==0.1.1
-      - airllm==2.11.0
-      - bitsandbytes==0.44.1
       - encodec==0.1.1
       - wtpsplit==2.0.8
       - scipy==1.14.1

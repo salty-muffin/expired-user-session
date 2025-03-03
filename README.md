@@ -42,7 +42,6 @@ to qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
   - currently fails due to vram limits (why?).
 - [x] pick right whisper model
 - [x] implement multilanguage
-- [x] implement [AirLLM](https://github.com/lyogavin/airllm) for text generation
 - [ ] find right text generation model
   - [x] implement needed parameters for each model while retesting for the original one at each step
 - [ ] work over prompts and text generation method

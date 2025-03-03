@@ -12,7 +12,7 @@ import sys
 
 sys.path.append("server/")
 
-from text_generator import TextGenerator, TextGeneratorCTranslate, TextGeneratorAirLLM
+from text_generator import TextGenerator, TextGeneratorCTranslate
 from sentence_splitter import SentenceSplitter
 from translator import Opus, OpusCTranslate2
 
@@ -76,8 +76,6 @@ def test(
     model: str,
     ctranslate_dir: str | None,
     activation_scales: str | None,
-    airllm: bool = False,
-    compression: str | None = None,
     device_map: str | None = None,
     dtype: str = "default",
     print_file=None,
@@ -97,8 +95,6 @@ def test(
             activation_scales=activation_scales,
             dtype=dtype,
         )
-    elif airllm:
-        text_generator = TextGeneratorAirLLM(model, compression=compression)
     else:
         text_generator = TextGenerator(
             model,
@@ -172,8 +168,6 @@ def format_prompt_for_filename(s: str) -> str:
 @click.option("--device_map", type=str, default=None)
 @click.option("--ctranslate_dir", type=click.Path(file_okay=False))
 @click.option("--activation_scales", type=click.Path(exists=True, dir_okay=False))
-@click.option("--airllm", is_flag=True, default=False)
-@click.option("--compression", type=str, default=None)
 @click.option("--temperature", type=float, default=1.0)
 @click.option("--top_k", type=int, default=50)
 @click.option("--top_p", type=float, default=1.0)
@@ -194,8 +188,6 @@ def run_test(
     device_map: str,
     ctranslate_dir: str,
     activation_scales: str,
-    airllm: bool,
-    compression: str,
     temperature: float,
     top_k: int,
     top_p: float,
@@ -238,8 +230,6 @@ def run_test(
                     model=model,
                     ctranslate_dir=ctranslate_dir,
                     activation_scales=activation_scales,
-                    airllm=airllm,
-                    compression=compression,
                     device=device,
                     device_map=device_map,
                     temperature=temperature,

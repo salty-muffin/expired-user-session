@@ -19,9 +19,9 @@ const generateFilesJson = () => {
 		// Filter the files to include only .html files
 		const htmlFiles = files.filter((file) => file.endsWith('.html'));
 
-		// Prepare the JSON object
+		// Prepare the JSON object that includes key for url and character to be added manually later
 		const jsonData = htmlFiles.map((path) => {
-			return { path, character: '' };
+			return { path, url: '', character: '' };
 		});
 		// Write the JSON data to the output file
 		fs.writeFile(outputFile, JSON.stringify(jsonData, null, 2), (err) => {

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "profiles": "npx vite-node src/grab-profiles.ts"
+    "profiles": "rm -rf public/profiles && cp -r ../data/profiles public/profiles && npx vite-node src/grab-profiles.ts"
   },
   "devDependencies": {
     "@modyfi/vite-plugin-yaml": "^1.1.0",

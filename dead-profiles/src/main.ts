@@ -1,7 +1,7 @@
 import './style.css';
 
 import config from './config.yml';
-import * as profiles from '../../data/profiles.json';
+import profiles from '../../data/profiles.json';
 import moveData from './mouse-simulation/movedata.json';
 import scrollData from './mouse-simulation/scrolldata.json';
 

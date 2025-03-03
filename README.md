@@ -10,7 +10,7 @@ This is a rough visual layout of the software:
 
 A `server/.env` file needs to be created. Inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with. The caddyfile must be adjusted to the proper domain name. Currently docker compose needs to be run as root with `sudo docker compose up`.
 
-In this current version, a json of all pages with corrensponding prompt inserts needs to be created by navigating to `dead-profiles` and executing `npm run profiles`. This file needs to be filled with the character descriptions, too.
+In this current version, a json of all pages with corrensponding prompt inserts needs to be created by navigating to the `dead-profiles` directory and executing `npm run profiles`. This file lists the profile files from `dead-profiles/public/profiles` sorted alphabetically. It needs to be filled with the character descriptions, too.
 
 ## Development Requirements
 
@@ -40,6 +40,12 @@ To qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 - [darkshapes/mt0-large](https://huggingface.co/darkshapes/mt0-large): maybe a bloom version that also is able to do german language? also exists in smaller versions.
 
 ## To do
+
+- [x] add method for automatically generating "profiles.json" including files, urls & character descriptions
+- [ ] add hosting of dead profiles page on the server (maybe with the seance SeanceServer Class and under a different path)
+- [ ] add a "fake" url adress bar, showing the adress of the site in question (the real browser should be full screen)
+- [ ] enable switching the page from a button on the dead profiles client
+- [ ] make that switch the character profile for generation, too
 
 - [x] restructure (there should be a better structure than "modules/\*").
 - [x] try implementation with [huggingface transformers](https://huggingface.co/docs/transformers/main/en/model_doc/bark) for [additional speedups](https://huggingface.co/blog/optimizing-bark).

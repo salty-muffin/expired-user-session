@@ -28,7 +28,7 @@ const generateFilesJson = () => {
 			if (err) {
 				console.error('Error writing the JSON file:', err);
 			} else {
-				console.log(`files.json has been created with ${htmlFiles.length} HTML files.`);
+				console.log(`profiles.json has been created with ${htmlFiles.length} HTML files.`);
 			}
 		});
 	});

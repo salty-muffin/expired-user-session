@@ -14,4 +14,4 @@ python -u app.py \
     --wtpsplit_model=segment-any-text/sat-3l-sm \
     --languages=english,german \
     --default_language=english \
-    prompts.yml
+    ../data/prompts.yml

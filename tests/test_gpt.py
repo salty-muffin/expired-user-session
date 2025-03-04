@@ -85,7 +85,7 @@ def test(
         login(huggingface_token)
 
     # Get prompts
-    with open("server/prompts.yml") as file:
+    with open("data/prompts.yml") as file:
         prompts = yaml.safe_load(file)
 
     if ctranslate_dir:

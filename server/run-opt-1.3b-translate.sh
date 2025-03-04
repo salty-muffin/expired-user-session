@@ -16,4 +16,4 @@ python -u app.py \
     --default_language=english \
     --translate \
     --opus_model_names_base="Helsinki-NLP/opus-mt-{}-{}" \
-    prompts.yml
+    ../data/prompts.yml

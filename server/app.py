@@ -14,7 +14,6 @@ the AI will continue generating related responses until a new question is asked.
 
 import os
 import click
-import eventlet
 from flask import Flask, send_from_directory, request
 from flask_socketio import SocketIO
 import random
@@ -57,8 +56,9 @@ class SeanceServer:
         self.exiting = mp.Event()
         self.models_ready = mp.Event()
 
-        # Set up event handlers
+        # Set up the two pages (client interface & dead profiles page)
         self.setup_client_page()
+        self.setup_dead_profiles_page()
 
     def setup_client_page(self):
         """Setup routes for the client page and configure its SocketIO event handlers."""
@@ -127,6 +127,21 @@ class SeanceServer:
             """Handle random seed updates for response generation."""
             print(f"Received seed: {data['seed']}.")
             self.seed_pipe[1].send(data["seed"])
+
+    def setup_dead_profiles_page(self) -> None:
+        """Setup routes for the dead profiles page."""
+
+        @self.app.route("/profiles")
+        def profiles():
+            return send_from_directory("../dead-profiles/dist", "index.html")
+
+        # @self.app.route("/profiles/favicon.png")
+        # def favicon():
+        #     return send_from_directory("../dead-profiles/dist", "favicon.png")
+
+        @self.app.route("/profiles/<path:path>")
+        def profiles_assets(path):
+            return send_from_directory("../dead-profiles/dist", path)
 
     def stream_responses(self) -> None:
         """Stream AI-generated responses back to the client."""
@@ -527,7 +542,7 @@ def main(**config):
 
     # Start server
     try:
-        # eventlet.wsgi.server(eventlet.listen(("", 5000)), server.app)
+        print("Running server at http://0.0.0.0:5000")
         server.sio.run(server.app, host="0.0.0.0", port=5000)
     except KeyboardInterrupt:
         print("Shutting down...")

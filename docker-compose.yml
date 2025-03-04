@@ -15,11 +15,18 @@ services:
               count: 1
               capabilities: [gpu]
   client:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app/client
     command: ["sh", "-c", "npm install && npm run build"]
     volumes:
       - ./client:/app/client
+      - ./data:/app/data
+  dead-profiles:
+    image: node:22-alpine
+    working_dir: /app/dead-profiles
+    command: ["sh", "-c", "npm install && npm run build"]
+    volumes:
+      - ./dead-profiles:/app/dead-profiles
       - ./data:/app/data
   caddy:
     image: caddy:2-alpine

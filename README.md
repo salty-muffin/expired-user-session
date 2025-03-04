@@ -42,10 +42,11 @@ To qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 ## To do
 
 - [x] add method for automatically generating "profiles.json" including files, urls & character descriptions
-- [ ] add hosting of dead profiles page on the server (maybe with the seance SeanceServer Class and under a different path)
+- [x] add hosting of dead profiles page on the server (maybe with the seance SeanceServer Class and under a different path)
 - [ ] add a "fake" url adress bar, showing the adress of the site in question (the real browser should be full screen)
 - [ ] enable switching the page from a button on the dead profiles client
 - [ ] make that switch the character profile for generation, too
+- [ ] implement that the current character gets worked into the prompts
 
 - [x] restructure (there should be a better structure than "modules/\*").
 - [x] try implementation with [huggingface transformers](https://huggingface.co/docs/transformers/main/en/model_doc/bark) for [additional speedups](https://huggingface.co/blog/optimizing-bark).

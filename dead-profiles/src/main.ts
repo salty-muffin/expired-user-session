@@ -1,5 +1,7 @@
 import './style.css';
 
+const baseUrl = import.meta.env.BASE_URL;
+
 import config from './config.yml';
 import profiles from '../../data/profiles.json';
 import moveData from './mouse-simulation/movedata.json';
@@ -212,7 +214,7 @@ const loadNextFile = (profiles: { path: string; character: string }[]) => {
 	if (frame) {
 		scrollPosition = { x: 0, y: 0 };
 
-		frame.src = `/profiles/${profiles[currentIndex].path}`;
+		frame.src = `/profiles/${baseUrl.replace('/', '')}/${profiles[currentIndex].path}`;
 		currentIndex++;
 		if (currentIndex >= profiles.length) currentIndex = 0;
 		frame.onload = () => {

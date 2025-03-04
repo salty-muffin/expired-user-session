@@ -15,7 +15,8 @@ the AI will continue generating related responses until a new question is asked.
 import os
 import click
 import eventlet
-import socketio
+from flask import Flask, send_from_directory, request
+from flask_socketio import SocketIO
 import random
 from dotenv import load_dotenv
 import multiprocessing as mp
@@ -31,24 +32,17 @@ from multiprocessing.synchronize import Event
 
 # Initialize environment
 load_dotenv()
-os.environ["HF_HOME"] = os.path.join(os.getcwd(), "models")
-os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), "models")
 
 
 class SeanceServer:
     """Main server class handling WebSocket connections and audio streaming."""
 
     def __init__(self):
-        # Initialize SocketIO server
-        self.sio = socketio.Server(ping_timeout=60)
-        self.app = socketio.WSGIApp(
-            self.sio,
-            static_files={
-                "/": "../client/dist/index.html",
-                "/favicon.png": "../client/dist/favicon.png",
-                "/assets": "../client/dist/assets",
-            },
-        )
+        # Initialize Flask app
+        self.app = Flask(__name__)
+
+        # Initialize SocketIO with Flask
+        self.sio = SocketIO(self.app, ping_timeout=60)
 
         # Connection management
         self.users = set()
@@ -64,16 +58,31 @@ class SeanceServer:
         self.models_ready = mp.Event()
 
         # Set up event handlers
-        self.setup_handlers()
+        self.setup_client_page()
 
-    def setup_handlers(self):
-        """Configure SocketIO event handlers."""
+    def setup_client_page(self):
+        """Setup routes for the client page and configure its SocketIO event handlers."""
 
-        @self.sio.event
-        def connect(sid: str, _: dict[str, Any], auth: dict[str, str]) -> None:
+        # Configure static file routes
+        @self.app.route("/")
+        def index():
+            return send_from_directory("../client/dist", "index.html")
+
+        @self.app.route("/favicon.png")
+        def favicon():
+            return send_from_directory("../client/dist", "favicon.png")
+
+        @self.app.route("/assets/<path:path>")
+        def assets(path):
+            return send_from_directory("../client/dist/assets", path)
+
+        # Configure SocketIO event handlers
+        @self.sio.on("connect")
+        def connect(auth):
             """Handle new client connections with authentication."""
+            sid = request.sid
 
-            if not auth["password"] == os.getenv("PASSWORD"):
+            if not auth.get("password") == os.getenv("PASSWORD"):
                 raise ConnectionRefusedError("Authentication failed.")
             if len(self.users):
                 raise ConnectionRefusedError("Only one user at a time.")
@@ -82,9 +91,10 @@ class SeanceServer:
             self.users_connected.set()
             print(f"Contact established with '{sid}'.")
 
-        @self.sio.event
-        def disconnect(sid: str) -> None:
+        @self.sio.on("disconnect")
+        def disconnect():
             """Handle client disconnections."""
+            sid = request.sid
 
             if sid in self.users:
                 self.users.remove(sid)
@@ -92,8 +102,8 @@ class SeanceServer:
                 self.users_connected.clear()
             print(f"Contact lost with '{sid}'.")
 
-        @self.sio.event
-        def contact(_: str, data: bytes) -> None:
+        @self.sio.on("contact")
+        def contact(data):
             """Handle incoming voice messages."""
 
             # Save received audio
@@ -112,8 +122,8 @@ class SeanceServer:
                     target=self.stream_responses
                 )
 
-        @self.sio.event
-        def seed(_: str, data: dict[str, int]) -> None:
+        @self.sio.on("seed")
+        def seed(data):
             """Handle random seed updates for response generation."""
             print(f"Received seed: {data['seed']}.")
             self.seed_pipe[1].send(data["seed"])
@@ -517,7 +527,8 @@ def main(**config):
 
     # Start server
     try:
-        eventlet.wsgi.server(eventlet.listen(("", 5000)), server.app)
+        # eventlet.wsgi.server(eventlet.listen(("", 5000)), server.app)
+        server.sio.run(server.app, host="0.0.0.0", port=5000)
     except KeyboardInterrupt:
         print("Shutting down...")
     finally:

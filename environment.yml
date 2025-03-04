@@ -26,5 +26,7 @@ dependencies:
       - optimum==1.22.0
       - pydub==0.25.1
       # socketio
-      - python-socketio==5.11.4
+      - python-socketio==5.12.1
+      - flask-socketio==5.5.1
+      - Flask==3.1.0
       - eventlet==0.36.1

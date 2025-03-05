@@ -31,13 +31,14 @@ To qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 
 ## Models
 
-- [facebook/opt-1.3b](https://huggingface.co/facebook/opt-1.3b): used in the past and reliably unpredictable, but english only.
-- [meta-llama/Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B): multilangue, including german. has to be tested for result quality of connection. can be used in bfloat16
-- [meta-llama/Llama-3.2-3B](https://huggingface.co/meta-llama/Llama-3.2-3B): the same, but almost 3 times as big (maybe too big for a 12GB GPU, but 16GB should be enough).
-- [EleutherAI/gpt-neo-1.3B](https://huggingface.co/EleutherAI/gpt-neo-1.3B): probably similar to the facebook one. english only.
-- [EleutherAI/gpt-neo-2.7B](https://huggingface.co/EleutherAI/gpt-neo-2.7B): a bigger vesion of the former.
-- [bigscience/bloom-1b7](https://huggingface.co/bigscience/bloom-1b7): similar to meta llama, trined on language and code. multilanguage, but no german.
-- [darkshapes/mt0-large](https://huggingface.co/darkshapes/mt0-large): maybe a bloom version that also is able to do german language? also exists in smaller versions.
+- [facebook/opt-1.3b](https://huggingface.co/facebook/opt-1.3b): used in the past and reliably unpredictable, but english only
+- [facebook/opt-2.7b](https://huggingface.co/facebook/opt-2.7b): needs to be tested, might work better with more complicated prompts
+- [meta-llama/Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B): multilangue, including german. has to be tested for result quality of connection, can be used in bfloat16
+- [meta-llama/Llama-3.2-3B](https://huggingface.co/meta-llama/Llama-3.2-3B): the same, but almost 3 times as big (maybe too big for a 12GB GPU, but 16GB should be enough)
+- [EleutherAI/gpt-neo-1.3B](https://huggingface.co/EleutherAI/gpt-neo-1.3B): probably similar to the facebook one, english only
+- [EleutherAI/gpt-neo-2.7B](https://huggingface.co/EleutherAI/gpt-neo-2.7B): a bigger vesion of the former
+- [bigscience/bloom-1b7](https://huggingface.co/bigscience/bloom-1b7): similar to meta llama, trined on language and code. multilanguage, but no german
+- [darkshapes/mt0-large](https://huggingface.co/darkshapes/mt0-large): maybe a bloom version that also is able to do german language? also exists in smaller versions
 
 ## To do
 

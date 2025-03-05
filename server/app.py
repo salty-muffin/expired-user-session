@@ -135,10 +135,6 @@ class SeanceServer:
         def profiles():
             return send_from_directory("../dead-profiles/dist", "index.html")
 
-        # @self.app.route("/profiles/favicon.png")
-        # def favicon():
-        #     return send_from_directory("../dead-profiles/dist", "favicon.png")
-
         @self.app.route("/profiles/<path:path>")
         def profiles_assets(path):
             return send_from_directory("../dead-profiles/dist", path)

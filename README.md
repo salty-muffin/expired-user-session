@@ -44,7 +44,7 @@ To qualtize some models (e. g. OPT) for CTranslate2 in 8bit activation scales sh
 
 - [x] add method for automatically generating "profiles.json" including files, urls & character descriptions
 - [x] add hosting of dead profiles page on the server (maybe with the seance SeanceServer Class and under a different path)
-- [ ] add a "fake" url adress bar, showing the adress of the site in question (the real browser should be full screen)
+- [x] add a "fake" url adress bar, showing the adress of the site in question (the real browser should be full screen)
 - [ ] enable switching the page from a button on the dead profiles client
 - [ ] make that switch the character profile for generation, too
 - [ ] implement that the current character gets worked into the prompts

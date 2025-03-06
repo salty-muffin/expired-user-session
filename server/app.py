@@ -139,6 +139,13 @@ class SeanceServer:
         def profiles_assets(path):
             return send_from_directory("../dead-profiles/dist", path)
 
+    def setup_profile_control(self) -> None:
+        """Setup endpoints for going back and forwards through the profiles on the dead-profiles page and on the server."""
+
+        @self.app.post("/control")
+        def control():
+            print(request.data)
+
     def stream_responses(self) -> None:
         """Stream AI-generated responses back to the client."""
         from audio import convert_audio_to_mp3

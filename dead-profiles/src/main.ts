@@ -9,6 +9,8 @@ import scrollData from './mouse-simulation/scrolldata.json';
 
 let currentIndex = 0;
 
+const MAX_DISPLAY_TIME_ACTIVE = config.maxDisplayTime?.min || config.maxDisplayTime?.max;
+
 const frame = document.getElementById('frame') as HTMLIFrameElement | null;
 const cursor = document.getElementById('cursor') as HTMLIFrameElement | null;
 const browserUi = document.getElementById('browser-ui') as HTMLIFrameElement | null;
@@ -214,7 +216,11 @@ const moveMouse = (timestamp: number) => {
 
 let bodyDimensions = { x: 0, y: 0 };
 let first = true;
+let timeoutId: NodeJS.Timeout | null;
 const loadNextFile = (profiles: { path: string; url: string; character: string }[]) => {
+	// Reset the display time if it is active
+	if (timeoutId) clearTimeout(timeoutId);
+
 	if (frame) {
 		scrollPosition = { x: 0, y: 0 };
 
@@ -231,8 +237,6 @@ const loadNextFile = (profiles: { path: string; url: string; character: string }
 		}
 
 		frame.src = `/profiles/${baseUrl.replace('/', '')}/${profiles[currentIndex].path}`;
-		currentIndex++;
-		if (currentIndex >= profiles.length) currentIndex = 0;
 		frame.onload = () => {
 			if (frame?.contentDocument) {
 				bodyDimensions = {
@@ -250,9 +254,51 @@ const loadNextFile = (profiles: { path: string; url: string; character: string }
 		};
 	}
 
-	// Load next page after a random time
-	setTimeout(() => loadNextFile(profiles), getRandomInt(config.maxDisplayTime));
+	// If maxDisplayTime is set, load next page after a random time
+	if (MAX_DISPLAY_TIME_ACTIVE) {
+		timeoutId = setTimeout(() => {
+			currentIndex++;
+			if (currentIndex >= profiles.length) currentIndex = 0;
+			loadNextFile(profiles);
+		}, getRandomInt(config.maxDisplayTime));
+	}
 };
+
+// Add keyboard event listeners for arrow key controls to send a signal to the server to cycle through the profiles
+document.addEventListener('keydown', (event: KeyboardEvent) => {
+	// Prevent default behavior (like scrolling with arrow keys)
+	if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+		event.preventDefault();
+
+		// Set the direction and cycle through the profiles
+		let direction: string = '';
+		if (event.key === 'ArrowLeft') {
+			direction = 'back';
+
+			currentIndex--;
+			if (currentIndex < 0) currentIndex = profiles.length - 1;
+		} else if (event.key === 'ArrowRight') {
+			direction = 'forward';
+
+			currentIndex++;
+			if (currentIndex >= profiles.length) currentIndex = 0;
+		}
+		loadNextFile(profiles);
+
+		// Send the POST request with the direction
+		if (direction) {
+			fetch('/control', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'text/plain'
+				},
+				body: direction
+			}).catch((error: Error) => {
+				console.error('Error sending control command:', error);
+			});
+		}
+	}
+});
 
 if (profiles.length > 0) {
 	loadNextFile(profiles);

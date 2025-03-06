@@ -14,4 +14,5 @@ HF_HOME=$(PWD)/models TORCH_HOME=$(PWD)/models python -u app.py \
     --wtpsplit_model=segment-any-text/sat-3l-sm \
     --languages=english,german \
     --default_language=english \
+    --profiles=../data/profiles.json \
     ../data/prompts.yml

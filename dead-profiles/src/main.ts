@@ -259,7 +259,19 @@ const loadNextFile = (profiles: { path: string; url: string; character: string }
 		timeoutId = setTimeout(() => {
 			currentIndex++;
 			if (currentIndex >= profiles.length) currentIndex = 0;
+
 			loadNextFile(profiles);
+
+			// Send the POST request with the index and filepath
+			fetch('/control', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ index: currentIndex, path: profiles[currentIndex].path })
+			}).catch((error: Error) => {
+				console.error('Error sending control command:', error);
+			});
 		}, getRandomInt(config.maxDisplayTime));
 	}
 };
@@ -270,33 +282,26 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
 	if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
 		event.preventDefault();
 
-		// Set the direction and cycle through the profiles
-		let direction: string = '';
+		// Set the index and cycle through the profiles
 		if (event.key === 'ArrowLeft') {
-			direction = 'back';
-
 			currentIndex--;
 			if (currentIndex < 0) currentIndex = profiles.length - 1;
 		} else if (event.key === 'ArrowRight') {
-			direction = 'forward';
-
 			currentIndex++;
 			if (currentIndex >= profiles.length) currentIndex = 0;
 		}
 		loadNextFile(profiles);
 
-		// Send the POST request with the direction
-		if (direction) {
-			fetch('/control', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'text/plain'
-				},
-				body: direction
-			}).catch((error: Error) => {
-				console.error('Error sending control command:', error);
-			});
-		}
+		// Send the POST request with the index and filepath
+		fetch('/control', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ index: currentIndex, path: profiles[currentIndex].path })
+		}).catch((error: Error) => {
+			console.error('Error sending control command:', error);
+		});
 	}
 });
 

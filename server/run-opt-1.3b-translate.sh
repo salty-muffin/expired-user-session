@@ -16,4 +16,5 @@ HF_HOME=$(PWD)/models TORCH_HOME=$(PWD)/models python -u app.py \
     --default_language=english \
     --translate \
     --opus_model_names_base="Helsinki-NLP/opus-mt-{}-{}" \
+    --profiles=../data/profiles.json \
     ../data/prompts.yml

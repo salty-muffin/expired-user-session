@@ -11,4 +11,5 @@ HF_HOME=$(PWD)/models TORCH_HOME=$(PWD)/models python -u app.py \
     --bark_semantic_temperature=1.0 \
     --bark_coarse_temperature=0.6 \
     --wtpsplit_model=segment-any-text/sat-3l-sm \
+    --profiles=../data/profiles.json \
     ../data/prompts.yml

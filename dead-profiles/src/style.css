@@ -42,48 +42,26 @@ body {
 
 /* Address bar */
 #browser-ui {
-	width: 100%;
-	background: #f0f0f0;
+	width: calc(100% - 2em);
+	background: #e9e9e9;
 	border-bottom: 1px solid #cccccc;
-	padding: 8px;
+	padding: 0.5rem 1rem;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 	display: flex;
-	flex-direction: column;
-	box-sizing: border-box;
-}
-
-.browser-controls {
-	display: flex;
 	align-items: center;
-	margin-bottom: 6px;
-}
-.browser-buttons {
-	display: flex;
-	gap: 5px;
-	margin-right: 15px;
-}
-.browser-button {
-	width: 12px;
-	height: 12px;
-	border-radius: 50%;
-	border: none;
+	gap: 5vw;
 }
 
-.button-red {
-	background-color: #ff5f56;
-}
-
-.button-yellow {
-	background-color: #ffbd2e;
-}
-
-.button-green {
-	background-color: #27c93f;
+#browser-ui svg path,
+#browser-ui svg rect,
+#browser-ui svg line {
+	stroke: #666;
+	stroke-width: 1.5px;
 }
 
 .browser-navigation {
 	display: flex;
-	gap: 10px;
+	gap: 1rem;
 	margin-right: 15px;
 }
 
@@ -98,17 +76,31 @@ body {
 .address-bar {
 	flex-grow: 1;
 	background: white;
-	border: 1px solid #ddd;
+
 	border-radius: 4px;
-	padding: 6px 10px;
-	font-size: 14px;
-	color: #333;
+	padding: 0.5em;
+	display: flex;
+	align-items: center;
+	gap: 1em;
+
+	font-size: 0.9rem;
+}
+
+#url {
+	flex-grow: 1;
+}
+
+#protocol,
+#path {
+	color: #666;
+}
+
+.address-bar-icon {
 	display: flex;
 	align-items: center;
 }
 
-.lock-icon {
-	color: green;
-	margin-right: 6px;
-	font-size: 12px;
+.browser-menu {
+	display: flex;
+	align-items: center;
 }

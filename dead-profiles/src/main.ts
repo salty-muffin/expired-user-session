@@ -11,6 +11,10 @@ let currentIndex = 0;
 
 const frame = document.getElementById('frame') as HTMLIFrameElement | null;
 const cursor = document.getElementById('cursor') as HTMLIFrameElement | null;
+const browserUi = document.getElementById('browser-ui') as HTMLIFrameElement | null;
+const urlProtocol = document.getElementById('protocol') as HTMLIFrameElement | null;
+const urlHostname = document.getElementById('hostname') as HTMLIFrameElement | null;
+const urlPath = document.getElementById('path') as HTMLIFrameElement | null;
 
 interface Range {
 	min: number;
@@ -188,13 +192,13 @@ const moveMouse = (timestamp: number) => {
 	while (currentMoveSegment.length && currentMoveSegment[0].t <= timestamp - moveStart) {
 		currentData = currentMoveSegment.shift() ?? null;
 	}
-	// Get mouse position adjusted to window dimensions and move the mouse there
-	if (cursor && currentData) {
-		const cursorX = (currentData.x as number) * window.innerWidth;
-		const cursorY = (currentData.y as number) * window.innerHeight;
+	// Get mouse position adjusted to iframe dimensions and move the mouse there
+	if (frame && browserUi && cursor && currentData) {
+		const cursorX = (currentData.x as number) * frame.offsetWidth;
+		const cursorY = (currentData.y as number) * frame.offsetHeight + browserUi.offsetHeight;
 		cursor.style.left = `${cursorX}px`;
 		cursor.style.top = `${cursorY}px`;
-		if (frame?.contentDocument) {
+		if (frame.contentDocument) {
 			const elementUnderCursor = frame.contentDocument.elementFromPoint(cursorX, cursorY);
 			if (isClickable(elementUnderCursor)) {
 				cursor.classList.remove('default');
@@ -210,9 +214,21 @@ const moveMouse = (timestamp: number) => {
 
 let bodyDimensions = { x: 0, y: 0 };
 let first = true;
-const loadNextFile = (profiles: { path: string; character: string }[]) => {
+const loadNextFile = (profiles: { path: string; url: string; character: string }[]) => {
 	if (frame) {
 		scrollPosition = { x: 0, y: 0 };
+
+		if (urlProtocol && urlHostname && urlPath) {
+			try {
+				const url = new URL(profiles[currentIndex].url);
+
+				urlProtocol.innerText = url.protocol + '//';
+				urlHostname.innerText = url.hostname;
+				urlPath.innerText = url.port + url.pathname;
+			} catch {
+				console.warn(`invalid url: ${profiles[currentIndex].url}`);
+			}
+		}
 
 		frame.src = `/profiles/${baseUrl.replace('/', '')}/${profiles[currentIndex].path}`;
 		currentIndex++;

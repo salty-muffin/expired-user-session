@@ -7,20 +7,99 @@
 		<title>Dead Profiles</title>
 	</head>
 	<body>
-		<div id="browser-ui">
-			<div class="browser-controls">
+		<div id="container">
+			<div id="browser-ui">
 				<div class="browser-navigation">
-					<button class="nav-button">←</button>
-					<button class="nav-button">→</button>
-					<button class="nav-button">↻</button>
+					<button class="nav-button">
+						<svg
+							width="14"
+							height="12"
+							viewBox="0 0 14 12"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path d="M14 6L1 6" />
+							<path d="M6 11.5L1 6L6 0.5" />
+						</svg>
+					</button>
+					<button class="nav-button">
+						<svg
+							width="14"
+							height="12"
+							viewBox="0 0 14 12"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path d="M0 6L13 6" />
+							<path d="M8 0.5L13 6L8 11.5" />
+						</svg>
+					</button>
+					<button class="nav-button">
+						<svg
+							width="16"
+							height="14"
+							viewBox="0 0 16 14"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M12.2788 4.14797C11.5834 2.86086 10.4417 1.87217 9.06848 1.36782C7.69522 0.863479 6.185 0.878237 4.82186 1.40932C3.45872 1.94041 2.33657 2.95123 1.66646 4.25168C0.996354 5.55212 0.824456 7.0526 1.1831 8.4709C1.54174 9.88921 2.40621 11.1276 3.61393 11.9532C4.82164 12.7788 6.28939 13.1348 7.74113 12.9541C9.19288 12.7733 10.5286 12.0685 11.497 10.972C12.1971 10.1794 12.6704 9.22165 12.879 8.1991"
+							/>
+							<path
+								fill-rule="evenodd"
+								clip-rule="evenodd"
+								d="M13.6 1L13.0677 5.95021L8.56512 3.82551L13.6 1Z"
+								fill="black"
+							/>
+						</svg>
+					</button>
 				</div>
 				<div class="address-bar">
-					<span class="lock-icon">🔒</span>
-					<span>https://socialmedia.com/profile</span>
+					<span class="address-bar-icon">
+						<svg
+							width="12"
+							height="16"
+							viewBox="0 0 12 16"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<rect x="1" y="8" width="10" height="7" rx="1" />
+							<path d="M2.5 8V4.5C2.5 2.567 4.067 1 6 1C7.933 1 9.5 2.567 9.5 4.5V8" />
+						</svg>
+					</span>
+					<span id="url"
+						><span id="protocol"></span><span id="hostname"></span><span id="path"></span
+					></span>
+					<span class="address-bar-icon">
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 16 16"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								d="M7.23916 1.34164C7.47864 0.60459 8.52136 0.604592 8.76085 1.34164L9.95327 5.01155C10.0604 5.34117 10.3675 5.56434 10.7141 5.56434H14.5729C15.3479 5.56434 15.6701 6.55603 15.0431 7.01155L11.9213 9.27968C11.6409 9.4834 11.5236 9.84449 11.6307 10.1741L12.8231 13.844C13.0626 14.5811 12.219 15.194 11.592 14.7384L8.47023 12.4703C8.18984 12.2666 7.81016 12.2666 7.52977 12.4703L4.40796 14.7384C3.78099 15.194 2.9374 14.5811 3.17689 13.844L4.36931 10.1741C4.47641 9.84449 4.35908 9.4834 4.07869 9.27968L0.95688 7.01155C0.329909 6.55603 0.652131 5.56434 1.42711 5.56434H5.28588C5.63246 5.56434 5.93963 5.34117 6.04673 5.01155L7.23916 1.34164Z"
+							/>
+						</svg>
+					</span>
+				</div>
+				<div class="browser-menu">
+					<button class="nav-button">
+						<svg
+							width="12"
+							height="10"
+							viewBox="0 0 12 10"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<line y1="1.4" x2="12" y2="1.4" />
+							<line y1="5.4" x2="12" y2="5.4" />
+							<line y1="9.4" x2="12" y2="9.4" />
+						</svg>
+					</button>
 				</div>
 			</div>
-		</div>
-		<div id="container">
 			<iframe id="frame" src="" frameborder="0"></iframe>
 			<div id="cursor"></div>
 		</div>

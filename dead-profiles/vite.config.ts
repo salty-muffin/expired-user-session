@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import viteYaml from '@modyfi/vite-plugin-yaml';
 
 export default defineConfig({
-	base: './',
+	base: '/profiles/',
 	esbuild: {
 		supported: {
 			'top-level-await': true //browsers can handle top-level-await features

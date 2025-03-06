@@ -20,6 +20,7 @@ import random
 from dotenv import load_dotenv
 import multiprocessing as mp
 from threading import Thread
+import json
 import yaml
 from collections import Counter
 
@@ -56,9 +57,12 @@ class SeanceServer:
         self.exiting = mp.Event()
         self.models_ready = mp.Event()
 
+        self.profile_pipe = mp.Pipe()
+
         # Set up the two pages (client interface & dead profiles page)
         self.setup_client_page()
         self.setup_dead_profiles_page()
+        self.setup_profile_control()
 
     def setup_client_page(self):
         """Setup routes for the client page and configure its SocketIO event handlers."""
@@ -144,7 +148,12 @@ class SeanceServer:
 
         @self.app.post("/control")
         def control():
-            print(request.data)
+            data = request.json
+            print(f"Switched to profile No. {data.index}: {data.path}.")
+
+            self.profile_pipe[1].send(data)
+
+            return {"message": "OK"}, 200
 
     def stream_responses(self) -> None:
         """Stream AI-generated responses back to the client."""
@@ -224,20 +233,27 @@ class AIProcessor:
         with open(config.pop("prompts")) as f:
             self.prompts = yaml.safe_load(f)
 
+        # Load profiles
+        with open(config.pop("profiles")) as f:
+            self.profiles = json.load(f)
+
+        if not len(self.profiles):
+            raise RuntimeError("No profiles were provided.")
+
         # Validate translation config parameters
         if self.default_lang not in self.languages:
             raise RuntimeError(
-                f"Default language not present in languages. Please change the languages."
+                "Default language not present in languages. Please change the languages."
             )
         if self.default_lang not in self.prompts.keys():
             raise RuntimeError(
-                f"No prompts for default language '{self.default_lang}' were provided"
+                f"No prompts for default language '{self.default_lang}' were provided."
             )
         if not self.translate:
             for lang in self.languages:
                 if lang not in self.prompts.keys():
                     raise RuntimeError(
-                        f"No prompts for language '{lang}' were provided"
+                        f"No prompts for language '{lang}' were provided."
                     )
 
     def load_models(self):
@@ -362,7 +378,7 @@ class AIProcessor:
             prompt, max_new_tokens=128, **self.gpt_config
         )[len(prompt) :].strip()
         if not len(full_response):
-            return "..."
+            return "...", previous_responses
 
         response = full_response.splitlines()[0]
 
@@ -383,6 +399,7 @@ class AIProcessor:
         users_connected: Event,
         models_ready: Event,
         exiting: Event,
+        profile: Connection,
     ):
         """
         Main processing loop that handles messages and generates responses.
@@ -398,12 +415,36 @@ class AIProcessor:
         models_ready.set()
         current_seed = 0
 
+        current_profile = self.profiles[0]
+
         while not exiting.is_set():
             # Wait for user connection
             users_connected.wait()
 
             # Get new message
             message_path = receive_message.recv()
+
+            # See if the profile has changed
+            if profile.poll():
+                profile_data = profile.recv()
+
+                if not profile_data or profile_data.keys() != {"index", "path"}:
+                    raise ValueError("Invalid profile data received.")
+
+                if profile_data.index >= len(self.profiles):
+                    raise RuntimeError(
+                        f"Profile index out of range: {profile_data['index']} of as max. of {len(self.profiles) - 1}."
+                    )
+
+                current_profile = self.profiles[profile_data["index"]]
+
+            if "character" not in current_profile or not current_profile["character"]:
+                raise RuntimeError(
+                    "'character' on current profile either not set or empty."
+                )
+
+            # Set current character
+            current_character = current_profile["character"]
 
             # Transcribe audio
             message, detected_langs = self.stt.transcribe_audio(message_path)
@@ -479,38 +520,39 @@ def parse_comma_list(s: list | str) -> list[str]:
 # fmt: off
 @click.command()
 # Whisper options
-@click.option("--whisper_model", type=str, required=True,                              help="Whisper model for speech transcription")
+@click.option("--whisper_model", type=str, required=True,                                help="Whisper model for speech transcription")
 # @click.option("--whisper_ctranslate_dir", type=click.Path(file_okay=False),            help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
-@click.option("--whisper_dtype", type=str, default="default",                          help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
+@click.option("--whisper_dtype", type=str, default="default",                            help="Torch dtype to use for the model (transformers: default, float32, float16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # Text generation options
-@click.option("--gpt_model", type=str, required=True,                                  help="Transformer model for speech generation")
-@click.option("--gpt_device_map", type=str, default=None,                              help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
-@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
-@click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False), help="Path to the activation scales for converting the model to CTranslate2")
-@click.option("--gpt_temperature", type=click.FloatRange(0.0),                         help="Value used to modulate the next token probabilities")
-@click.option("--gpt_top_k", type=click.IntRange(0),                                   help="Nmber of highest probability vocabulary tokens to keep for top-k-filtering")
-@click.option("--gpt_top_p", type=click.FloatRange(0.0),                               help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
-@click.option("--gpt_do_sample", is_flag=True, default=None,                           help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
-@click.option("--gpt_dtype", type=str, default="default",                              help="Torch dtype to use for the model (transformers: default, float32, bfloat16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
+@click.option("--gpt_model", type=str, required=True,                                    help="Transformer model for speech generation")
+@click.option("--gpt_device_map", type=str, default=None,                                help="How to distribute the model across GRPU, CPU & memory (possible options: 'auto')")
+@click.option("--gpt_ctranslate_dir", type=click.Path(file_okay=False),                  help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--gpt_activation_scales", type=click.Path(exists=True, dir_okay=False),   help="Path to the activation scales for converting the model to CTranslate2")
+@click.option("--gpt_temperature", type=click.FloatRange(0.0),                           help="Value used to modulate the next token probabilities")
+@click.option("--gpt_top_k", type=click.IntRange(0),                                     help="Nmber of highest probability vocabulary tokens to keep for top-k-filtering")
+@click.option("--gpt_top_p", type=click.FloatRange(0.0),                                 help="If set to float < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for generation")
+@click.option("--gpt_do_sample", is_flag=True, default=None,                             help="Enable decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling")
+@click.option("--gpt_dtype", type=str, default="default",                                help="Torch dtype to use for the model (transformers: default, float32, bfloat16; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
 # Text to speech options
-@click.option("--bark_model", type=str, required=True,                                 help="Bark model for text to speech")
-@click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),               help="Temperature for the bark generation (semantic/text)")
-@click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),                 help="Temperature for the bark generation (course waveform)")
-@click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5,      help="Temperature for the bark generation (fine waveform)")
-@click.option("--bark_use_better_transformer", is_flag=True, default=False,            help="Optimize bark with BetterTransformer (shorter inference time)")
-@click.option("--bark_dtype", type=str, default="default",                             help="Torch dtype to use for the model (default, float32, float16)")
-@click.option("--bark_cpu_offload", is_flag=True, default=False,                       help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
+@click.option("--bark_model", type=str, required=True,                                   help="Bark model for text to speech")
+@click.option("--bark_semantic_temperature", type=click.FloatRange(0.0),                 help="Temperature for the bark generation (semantic/text)")
+@click.option("--bark_coarse_temperature", type=click.FloatRange(0.0),                   help="Temperature for the bark generation (course waveform)")
+@click.option("--bark_fine_temperature", type=click.FloatRange(0.0), default=0.5,        help="Temperature for the bark generation (fine waveform)")
+@click.option("--bark_use_better_transformer", is_flag=True, default=False,              help="Optimize bark with BetterTransformer (shorter inference time)")
+@click.option("--bark_dtype", type=str, default="default",                               help="Torch dtype to use for the model (default, float32, float16)")
+@click.option("--bark_cpu_offload", is_flag=True, default=False,                         help="Offload unused models to the cpu for bark text to speech (lower vram usage, longer inference time)")
 # Sentence splitting options
-@click.option("--wtpsplit_model", type=str, required=True,                             help="Wtpsplit model for sentence splitting")
+@click.option("--wtpsplit_model", type=str, required=True,                               help="Wtpsplit model for sentence splitting")
 # Language options
-@click.option("--languages", type=parse_comma_list, default=["english"],               help="Languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
-@click.option("--default_language", type=str, default="english",                       help="Fallback language in case the detected language is not provided")
+@click.option("--languages", type=parse_comma_list, default=["english"],                 help="Languages to accept as inputs (stt, tts, text generation & sentence splitting models need to be able to work with the languages provided)")
+@click.option("--default_language", type=str, default="english",                         help="Fallback language in case the detected language is not provided")
 # Translation
-@click.option("--translate", is_flag=True, default=False,                              help="Always translate to and from the default language instead of using a multi language model")
-@click.option("--opus_model_names_base", type=str,                                     help="String to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
-@click.option("--opus_ctranslate_dir", type=click.Path(file_okay=False),               help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
-@click.option("--opus_dtype", type=str, default="default",                             help="Torch dtype to use for the model (transformers: default, float32; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
-# Prompts
+@click.option("--translate", is_flag=True, default=False,                                help="Always translate to and from the default language instead of using a multi language model")
+@click.option("--opus_model_names_base", type=str,                                       help="String to be formatted with the corresponding language codes (e.g. 'Helsinki-NLP/opus-mt-{}-{}' -> 'Helsinki-NLP/opus-mt-en-de'), needs trantion to be enabled")
+@click.option("--opus_ctranslate_dir", type=click.Path(file_okay=False),                 help="Directory where the CTranslate2 conversion of the model is or should be (this activates CTranslate2)")
+@click.option("--opus_dtype", type=str, default="default",                               help="Torch dtype to use for the model (transformers: default, float32; Ctranslate2: default, auto, int8, int8_float32, int8_float16, int8_bfloat16, int16, float16, float32, bfloat16)")
+# Prompts & Profiles
+@click.option("--profiles", type=click.Path(exists=True, dir_okay=False), required=True, help="The json file that houses the information on all social media profiles (path, url, character, title)")
 @click.argument("prompts", type=click.Path(exists=True, dir_okay=False))
 # fmt: on
 def main(**config):
@@ -536,6 +578,7 @@ def main(**config):
             server.users_connected,
             server.models_ready,
             server.exiting,
+            server.profile_pipe[0],
         ),
     )
     processor.start()

@@ -1,4 +1,4 @@
-maxDisplayTime: { min: 15000, max: 20000 }
+# maxDisplayTime: { min: 15000, max: 20000 }
 scrollSegmentTime: { min: 15000, max: 25000 }
 mouseMoveSegmentTime: { min: 20000, max: 30000 }
 enableMouse: true

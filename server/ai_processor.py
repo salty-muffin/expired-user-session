@@ -235,12 +235,13 @@ class AIProcessor:
 
         response = full_response.splitlines()[0]
 
-        # Update response history
-        previous_responses.append(response)
-
-        # Split into sentences and select one
+        # Split into sentences and select the first one
         sentences = self.sentence_splitter.split(response)
-        selected_sentence = sentences[random.randint(0, len(sentences) - 1)]
+        # selected_sentence = sentences[random.randint(0, len(sentences) - 1)]
+        selected_sentence = sentences[0]
+
+        # Update response history
+        previous_responses.append(selected_sentence)
 
         return selected_sentence, previous_responses
 

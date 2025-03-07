@@ -568,8 +568,6 @@ def main(**config):
     continuously, generating responses until interrupted by new messages.
     """
 
-    mp.set_start_method("spawn")
-
     validate_command_line_arguments(config)
 
     server = SeanceServer()

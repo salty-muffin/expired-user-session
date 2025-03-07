@@ -9,7 +9,8 @@ import scrollData from './mouse-simulation/scrolldata.json';
 
 let currentIndex = 0;
 
-const MAX_DISPLAY_TIME_ACTIVE = config.maxDisplayTime?.min || config.maxDisplayTime?.max;
+const MAX_DISPLAY_TIME_ACTIVE =
+	Boolean(config.maxDisplayTime) || Boolean(config.maxDisplayTime?.max);
 
 const frame = document.getElementById('frame') as HTMLIFrameElement | null;
 const cursor = document.getElementById('cursor') as HTMLIFrameElement | null;

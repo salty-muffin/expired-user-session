@@ -149,7 +149,7 @@ class SeanceServer:
         @self.app.post("/control")
         def control():
             data = request.json
-            print(f"Switched to profile No. {data.index}: {data.path}.")
+            print(f"Switched to profile No. {data['index']}: {data['path']}.")
 
             self.profile_pipe[1].send(data)
 
@@ -160,11 +160,12 @@ class SeanceServer:
         from audio import convert_audio_to_mp3
 
         while not self.exiting.is_set():
-            response = self.response_pipe[0].recv()
-            mp3_data = convert_audio_to_mp3(response, sample_rate=24_000)
-            event = "first_response" if self.first_response else "response"
-            self.sio.emit(event, mp3_data.read())
-            self.first_response = False
+            if self.response_pipe[0].poll():
+                response = self.response_pipe[0].recv()
+                mp3_data = convert_audio_to_mp3(response, sample_rate=24_000)
+                event = "first_response" if self.first_response else "response"
+                self.sio.emit(event, mp3_data.read())
+                self.first_response = False
             self.sio.sleep(1)
 
 
@@ -211,6 +212,13 @@ def remove_config_items(config: dict[str, Any], keys: list[str]) -> None:
 
     for key in keys:
         config.pop(key, None)
+
+
+def get_character(profile: dict[str]) -> str:
+    """Gets the charakter from a profile and throws and error if it doesntt exist."""
+    if "character" not in profile or not profile["character"]:
+        raise RuntimeError("'character' on current profile either not set or empty.")
+    return profile["character"]
 
 
 class AIProcessor:
@@ -415,7 +423,7 @@ class AIProcessor:
         models_ready.set()
         current_seed = 0
 
-        current_profile = self.profiles[0]
+        current_character = get_character(self.profiles[0])
 
         while not exiting.is_set():
             # Wait for user connection
@@ -423,28 +431,6 @@ class AIProcessor:
 
             # Get new message
             message_path = receive_message.recv()
-
-            # See if the profile has changed
-            if profile.poll():
-                profile_data = profile.recv()
-
-                if not profile_data or profile_data.keys() != {"index", "path"}:
-                    raise ValueError("Invalid profile data received.")
-
-                if profile_data.index >= len(self.profiles):
-                    raise RuntimeError(
-                        f"Profile index out of range: {profile_data['index']} of as max. of {len(self.profiles) - 1}."
-                    )
-
-                current_profile = self.profiles[profile_data["index"]]
-
-            if "character" not in current_profile or not current_profile["character"]:
-                raise RuntimeError(
-                    "'character' on current profile either not set or empty."
-                )
-
-            # Set current character
-            current_character = current_profile["character"]
 
             # Transcribe audio
             message, detected_langs = self.stt.transcribe_audio(message_path)
@@ -474,6 +460,24 @@ class AIProcessor:
             # Generate responses until new message arrives
             responses: list[str] = []
             while not receive_message.poll():
+                # See if the profile has changed
+                if profile.poll():
+                    profile_data = profile.recv()
+
+                    if not profile_data or profile_data.keys() != {"index", "path"}:
+                        raise ValueError("Invalid profile data received.")
+
+                    if profile_data["index"] >= len(self.profiles):
+                        raise RuntimeError(
+                            f"Profile index out of range: {profile_data['index']} of as max. of {len(self.profiles) - 1}."
+                        )
+
+                    # Set current character
+                    current_character = get_character(
+                        self.profiles[profile_data["index"]]
+                    )
+                    print(f"Switched to character : {current_character}.")
+
                 # Generate next response
                 text, responses = self.generate_next_response(
                     current_lang, message if not responses else None, responses
@@ -563,6 +567,8 @@ def main(**config):
     connecting them through pipes for message passing. The AI processor runs
     continuously, generating responses until interrupted by new messages.
     """
+
+    mp.set_start_method("spawn")
 
     validate_command_line_arguments(config)
 

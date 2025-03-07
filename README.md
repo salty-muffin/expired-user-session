@@ -10,7 +10,7 @@ This is a rough visual layout of the software:
 
 A `server/.env` file needs to be created. Inside the env file `PASSWORD=xxx` must be set to the password that the user should sign in with. The caddyfile must be adjusted to the proper domain name. Currently docker compose needs to be run as root with `sudo docker compose up`.
 
-In this current version, a json of all pages with corrensponding prompt inserts needs to be created by navigating to the `dead-profiles` directory and executing `npm run profiles`. This file lists the profile files from `dead-profiles/public/profiles` sorted alphabetically. It needs to be filled with the character descriptions, too.
+In this current version, a json of all pages with corrensponding prompt inserts needs to be created by navigating to the `dead-profiles` directory and executing `npm run profiles`. This file lists the profile files from `dead-profiles/public/profiles` sorted alphabetically. It needs to be filled with the character descriptions, too. Character descritions should start with "[Name] is ...".
 
 ## Development Requirements
 

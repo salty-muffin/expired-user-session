@@ -55,11 +55,11 @@ def remove_config_items(config: dict[str, Any], keys: list[str]) -> None:
         config.pop(key, None)
 
 
-def get_character(profile: dict[str]) -> str:
+def get_profile_attribute(profile: dict[str], key: str) -> str:
     """Gets the charakter from a profile and throws and error if it doesntt exist."""
-    if "character" not in profile or not profile["character"]:
-        raise RuntimeError("'character' on current profile either not set or empty.")
-    return profile["character"]
+    if key not in profile or not profile[key]:
+        raise RuntimeError(f"'{key}' on current profile either not set or empty.")
+    return profile[key]
 
 
 class AIProcessor:
@@ -195,6 +195,8 @@ class AIProcessor:
     def generate_next_response(
         self,
         language: str,
+        name: str,
+        character: str,
         message: Optional[str] = None,
         previous_responses: list[str] = [],
     ) -> tuple[str, list[str]]:
@@ -216,10 +218,12 @@ class AIProcessor:
         # Generate prompt based on context
         if message:
             previous_responses = []
-            prompt = self.prompts[language]["question_prompt"].format(message)
+            prompt = self.prompts[language]["question_prompt"].format(
+                name=name, character=character, message=message
+            )
         else:
             prompt = self.prompts[language]["continuation_prompt"].format(
-                " ".join(previous_responses)
+                name=name, character=character, responses=" ".join(previous_responses)
             )
 
         # Generate response
@@ -264,7 +268,8 @@ class AIProcessor:
         models_ready.set()
         current_seed = 0
 
-        current_character = get_character(self.profiles[0])
+        current_character = get_profile_attribute(self.profiles[0], "character")
+        current_name = get_profile_attribute(self.profiles[0], "name")
 
         while not exiting.is_set():
             # Wait for user connection
@@ -314,14 +319,20 @@ class AIProcessor:
                         )
 
                     # Set current character
-                    current_character = get_character(
+                    current_character = get_profile_attribute(
                         self.profiles[profile_data["index"]]
                     )
-                    print(f"Switched to character : {current_character}.")
+                    current_name = get_profile_attribute(self.profiles[0], "name")
+
+                    print(f"Switched to profile: {current_name} - {current_character}")
 
                 # Generate next response
                 text, responses = self.generate_next_response(
-                    current_lang, message if not responses else None, responses
+                    language=current_lang,
+                    name=current_name,
+                    character=current_character,
+                    message=message if not responses else None,
+                    previous_responses=responses,
                 )
 
                 # Translate if necessary

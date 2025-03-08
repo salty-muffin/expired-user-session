@@ -123,11 +123,12 @@ class SeanceServer:
         from audio import convert_audio_to_mp3
 
         while not self.exiting.is_set():
-            response = self.response_pipe[0].recv()
-            mp3_data = convert_audio_to_mp3(response, sample_rate=24_000)
-            event = "first_response" if self.first_response else "response"
-            self.sio.emit(event, mp3_data.read())
-            self.first_response = False
+            if self.response_pipe[0].poll():
+                response = self.response_pipe[0].recv()
+                mp3_data = convert_audio_to_mp3(response, sample_rate=24_000)
+                event = "first_response" if self.first_response else "response"
+                self.sio.emit(event, mp3_data.read())
+                self.first_response = False
             self.sio.sleep(1)
 
 

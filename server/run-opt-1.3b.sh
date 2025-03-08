@@ -1,5 +1,5 @@
 echo "starting EXPIRED USER SESSION..."
-python -u app.py \
+HF_HOME=$(PWD)/models TORCH_HOME=$(PWD)/models python -u app.py \
     --whisper_model=openai/whisper-base.en \
     --whisper_dtype=float16 \
     --gpt_model=facebook/opt-1.3b \

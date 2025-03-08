@@ -293,6 +293,7 @@ document.addEventListener('keydown', (event: KeyboardEvent) => {
 		}
 		loadNextFile(profiles);
 
+		console.log(currentIndex); // DEBUG
 		// Send the POST request with the index and filepath
 		fetch('/control', {
 			method: 'POST',

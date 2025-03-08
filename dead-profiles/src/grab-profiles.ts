@@ -67,6 +67,7 @@ const generateFilesJson = async () => {
 					path: fileName,
 					url: parseSingleFileURL(firstComment),
 					name: '',
+					pronouns: ['', ''],
 					character: '',
 					title
 				};

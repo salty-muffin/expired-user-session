@@ -196,6 +196,7 @@ class AIProcessor:
         self,
         language: str,
         name: str,
+        pronouns: list[str],
         character: str,
         message: Optional[str] = None,
         previous_responses: list[str] = [],
@@ -217,13 +218,21 @@ class AIProcessor:
 
         # Generate prompt based on context
         if message:
+            # If it is the first response, use the question/answer prompt and fill it with name, pronouns, character & and question (i.e. message)
             previous_responses = []
             prompt = self.prompts[language]["question_prompt"].format(
-                name=name, character=character, message=message
+                name=name,
+                pronoun_subject=pronouns[0],
+                character=character,
+                message=message,
             )
         else:
+            # If it is not, use the monologue prompt and fill it with name, pronouns, character & previous responses
             prompt = self.prompts[language]["continuation_prompt"].format(
-                name=name, character=character, responses=" ".join(previous_responses)
+                name=name,
+                pronoun_subject=pronouns[0],
+                character=character,
+                responses=" ".join(previous_responses),
             )
 
         # Generate response
@@ -269,8 +278,10 @@ class AIProcessor:
         models_ready.set()
         current_seed = 0
 
-        current_character = get_profile_attribute(self.profiles[0], "character")
+        # Set current name, pronouns & character
         current_name = get_profile_attribute(self.profiles[0], "name")
+        current_pronouns = get_profile_attribute(self.profiles[0], "pronouns")
+        current_character = get_profile_attribute(self.profiles[0], "character")
 
         while not exiting.is_set():
             # Wait for user connection
@@ -319,11 +330,16 @@ class AIProcessor:
                             f"Profile index out of range: {profile_data['index']} of as max. of {len(self.profiles) - 1}."
                         )
 
-                    # Set current character
-                    current_character = get_profile_attribute(
-                        self.profiles[profile_data["index"]]
+                    # Set current name, pronouns & character
+                    current_name = get_profile_attribute(
+                        self.profiles[profile_data["index"]], "name"
                     )
-                    current_name = get_profile_attribute(self.profiles[0], "name")
+                    current_pronouns = get_profile_attribute(
+                        self.profiles[profile_data["index"]], "pronouns"
+                    )
+                    current_character = get_profile_attribute(
+                        self.profiles[profile_data["index"]], "character"
+                    )
 
                     print(f"Switched to profile: {current_name} - {current_character}")
 
@@ -331,6 +347,7 @@ class AIProcessor:
                 text, responses = self.generate_next_response(
                     language=current_lang,
                     name=current_name,
+                    pronouns=current_pronouns,
                     character=current_character,
                     message=message if not responses else None,
                     previous_responses=responses,
